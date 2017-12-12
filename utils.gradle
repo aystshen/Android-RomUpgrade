@@ -1,0 +1,8 @@
+//此文件申请一些公共参数
+
+ext {
+    compileSdkVersion = 25
+    buildToolsVersion = "25.0.2"
+    minSdkVersion = 18
+    targetSdkVersion = 21
+}
