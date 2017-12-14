@@ -6,14 +6,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
-import java.util.Locale;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.Service;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -28,15 +25,33 @@ import android.os.Message;
 import android.os.RecoverySystem;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.liulishuo.filedownloader.BaseDownloadTask;
+import com.liulishuo.filedownloader.FileDownloadListener;
+import com.liulishuo.filedownloader.FileDownloader;
+import com.topband.autoupgrade.R;
+import com.topband.autoupgrade.http.HttpHelper;
+import com.topband.autoupgrade.http.SessionIDManager;
+import com.topband.autoupgrade.http.TopbandApi;
+import com.topband.autoupgrade.model.ApplyKeyRspData;
+import com.topband.autoupgrade.model.ReqBody;
+import com.topband.autoupgrade.model.RspBody;
+import com.topband.autoupgrade.model.UpgradeReqData;
+import com.topband.autoupgrade.model.UpgradeRspData;
 import com.topband.autoupgrade.util.AppUtils;
+import com.topband.autoupgrade.util.DataEncryptUtil;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
-
-    public static final String EXTRA_PACKAGE_PATH = "com.topband.autoupgrade.extra.PACKAGE_PATH";
 
     public static final int COMMAND_NULL = 0;
     public static final int COMMAND_CHECK_LOCAL_UPDATING = 1;
@@ -72,18 +87,13 @@ public class UpdateService extends Service {
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
 
+    private Dialog mDialog = null;
+    private ProgressBar mDownloadPgr = null;
+    private int mDownloadTaskId = 0;
+
     public static String sOtaPackageName = "update.zip";
     private static volatile boolean sWorkHandleLocked = false;
     private static volatile boolean sIsNeedDeletePackage = false;
-
-    public static URI mRemoteURI = null;
-    private String mTargetURI = null;
-    private boolean mUseBackupHost = false;
-    private String mOtaPackageVersion = null;
-    private String mSystemVersion = null;
-    private String mOtaPackageName = null;
-    private String mOtaPackageLength = null;
-    private String mDescription = null;
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -96,7 +106,6 @@ public class UpdateService extends Service {
         public void installPackage(String packagePath) {
             Log.d(TAG, "installPackage, path: " + packagePath);
             try {
-                sWorkHandleLocked = true;
                 RecoverySystem.installPackage(mContext, new File(packagePath));
             } catch (IOException e) {
                 Log.e(TAG, "installPackage, Reboot for installPackage failed: " + e);
@@ -128,16 +137,6 @@ public class UpdateService extends Service {
                 Log.d(TAG, "deletePackage, path: " + packagePath + ", file not exists!");
             }
         }
-
-        public void unLockWorkHandler() {
-            Log.d(TAG, "unLockWorkHandler...");
-            sWorkHandleLocked = false;
-        }
-
-        public void LockWorkHandler() {
-            sWorkHandleLocked = true;
-            Log.d(TAG, "LockWorkHandler...");
-        }
     }
 
     @Override
@@ -152,13 +151,6 @@ public class UpdateService extends Service {
         if (!TextUtils.isEmpty(otaPackageFileName)) {
             sOtaPackageName = otaPackageFileName;
             Log.d(TAG, "onCreate, get ota package name is: " + otaPackageFileName);
-        }
-
-        try {
-            mRemoteURI = new URI(getRemoteUri());
-            Log.d(TAG, "onCreate, remote uri is " + mRemoteURI.toString());
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
         }
 
         mMainHandler = new Handler(Looper.getMainLooper());
@@ -179,13 +171,9 @@ public class UpdateService extends Service {
                     if (command.startsWith(COMMAND_FLAG_SUCCESS)) {
                         mLastUpdatePath = path;
                         sIsNeedDeletePackage = true;
-
                         showUpdateSuccess();
-
-                        sWorkHandleLocked = true;
                     } else if (command.startsWith(COMMAND_FLAG_UPDATING)) {
                         showUpdateFailed();
-                        sWorkHandleLocked = true;
                     }
                 }
             }
@@ -247,7 +235,6 @@ public class UpdateService extends Service {
             switch (msg.what) {
                 case COMMAND_CHECK_LOCAL_UPDATING:
                     Log.d(TAG, "WorkHandler, COMMAND_CHECK_LOCAL_UPDATING");
-
                     if (sWorkHandleLocked) {
                         Log.w(TAG, "WorkHandler, locked!!!");
                         return;
@@ -260,43 +247,13 @@ public class UpdateService extends Service {
                     break;
 
                 case COMMAND_CHECK_REMOTE_UPDATING:
-//                    if (sWorkHandleLocked) {
-//                        Log.d(TAG, "WorkHandler::handleMessage() : locked !!!");
-//                        return;
-//                    }
-//
-//                    for (int i = 0; i < 2; i++) {
-//                        try {
-//                            boolean result;
-//
-//                            if (i == 0) {
-//                                mUseBackupHost = false;
-//                                result = requestUpdate(mRemoteURI);
-//                            } else {
-//                                mUseBackupHost = true;
-//                                result = requestUpdate(mRemoteURIBackup);
-//                            }
-//
-//                            if (result) {
-//                                Log.d(TAG, "find a remote update package, now start PackageDownloadActivity...");
-//                                startNotifyActivity();
-//                            } else {
-//                                Log.d(TAG, "no find remote update package...");
-//                                myMakeToast(mContext.getString(R.string.current_new));
-//                            }
-//                            break;
-//                        } catch (Exception e) {
-//                            //e.printStackTrace();
-//                            Log.d(TAG, "request remote server error...");
-//                            myMakeToast(mContext.getString(R.string.current_new));
-//                        }
-//
-//                        try {
-//                            Thread.sleep(5000);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
+                    Log.d(TAG, "WorkHandler, COMMAND_CHECK_REMOTE_UPDATING");
+                    if (sWorkHandleLocked) {
+                        Log.d(TAG, "WorkHandler, locked !!!");
+                        return;
+                    }
+
+                    requestUpdate();
                     break;
 
                 case COMMAND_VERIFY_UPDATE_PACKAGE:
@@ -311,19 +268,16 @@ public class UpdateService extends Service {
                     break;
 
                 case COMMAND_DELETE_UPDATE_PACKAGE:
-                    if (sIsNeedDeletePackage) {
-                        Log.d(TAG, "WorkHandler, COMMAND_DELETE_UPDATE_PACKAGE");
-                        File f = new File(mLastUpdatePath);
-                        if (f.exists()) {
-                            f.delete();
-                            Log.d(TAG, "WorkHandler, path=" + mLastUpdatePath + ", delete complete!");
-                        } else {
-                            Log.d(TAG, "WorkHandler, path=" + mLastUpdatePath + " , file not exists!");
-                        }
-
-                        sIsNeedDeletePackage = false;
-                        sWorkHandleLocked = false;
+                    Log.d(TAG, "WorkHandler, COMMAND_DELETE_UPDATE_PACKAGE");
+                    File f = new File(mLastUpdatePath);
+                    if (f.exists()) {
+                        f.delete();
+                        Log.d(TAG, "WorkHandler, path=" + mLastUpdatePath + ", delete complete!");
+                    } else {
+                        Log.d(TAG, "WorkHandler, path=" + mLastUpdatePath + " , file not exists!");
                     }
+                    sIsNeedDeletePackage = false;
+                    sWorkHandleLocked = false;
                     break;
 
                 default:
@@ -372,6 +326,7 @@ public class UpdateService extends Service {
 
     private void showNewVersion(final String path) {
         if (!TextUtils.isEmpty(path)) {
+            sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
             builder.setTitle("系统升级");
             builder.setMessage("发现新的系统版本，是否升级？\n" + path);
@@ -387,26 +342,112 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            builder.setNegativeButton("暂不升级", null);
+            builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int i) {
+                    sWorkHandleLocked = false;
+                    dialog.dismiss();
+                }
+            });
             final Dialog dialog = builder.create();
             dialog.setCancelable(false);
             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
             dialog.show();
+
+            mDialog = dialog;
         }
     }
 
-    private void showNewVersion() {
-        //TODO
-//        Intent intent = new Intent(mContext, OtaUpdateNotifyActivity.class);
-//        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//        intent.putExtra("uri", mTargetURI);
-//        intent.putExtra("OtaPackageLength", mOtaPackageLength);
-//        intent.putExtra("OtaPackageName", mOtaPackageName);
-//        intent.putExtra("OtaPackageVersion", mOtaPackageVersion);
-//        intent.putExtra("SystemVersion", mSystemVersion);
-//        intent.putExtra("description", mDescription);
-//        mContext.startActivity(intent);
-//        sWorkHandleLocked = true;
+    private void showNewVersion(final UpgradeRspData data) {
+        if (null != data) {
+            sWorkHandleLocked = true;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            builder.setTitle("系统升级");
+            builder.setMessage("发现新的系统版本，是否升级？\n" + data.getDesc());
+            builder.setPositiveButton("立即升级", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    String path = AppUtils.getDir(getApplicationContext(), "upgrade") + "/update.zip";
+                    download(data.getPakgUrl(), path);
+                    showDownloading();
+                    dialog.dismiss();
+                }
+            });
+            builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int i) {
+                    sWorkHandleLocked = false;
+                    dialog.dismiss();
+                }
+            });
+            final Dialog dialog = builder.create();
+            dialog.setCancelable(false);
+            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            dialog.show();
+
+            mDialog = dialog;
+        }
+    }
+
+    private void showDownloading() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle("系统升级");
+        builder.setMessage("正在下载新版本，请稍候...");
+        LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View view = inflater.inflate(R.layout.layout_download, null);
+        mDownloadPgr = (ProgressBar) view.findViewById(R.id.pgr_download);
+        builder.setView(view);
+        builder.setPositiveButton("隐藏", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int i) {
+                sWorkHandleLocked = false;
+                FileDownloader.getImpl().pause(mDownloadTaskId);
+                dialog.dismiss();
+            }
+        });
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        mDialog = dialog;
+    }
+
+    private void showDownloaded(final String path) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle("系统升级");
+        builder.setMessage("新版本已经下载完成，是否升级？");
+        builder.setPositiveButton("立即升级", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Message msg = new Message();
+                msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                Bundle b = new Bundle();
+                b.putString("path", path);
+                msg.setData(b);
+                mWorkHandler.sendMessage(msg);
+                dialog.dismiss();
+            }
+        });
+        builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int i) {
+                sWorkHandleLocked = false;
+                dialog.dismiss();
+            }
+        });
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        mDialog = dialog;
     }
 
     private void showInvalidPackage(final String path) {
@@ -426,90 +467,158 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            builder.setNegativeButton("取消", null);
+            builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int i) {
+                    sWorkHandleLocked = false;
+                    dialog.dismiss();
+                }
+            });
             final Dialog dialog = builder.create();
             dialog.setCancelable(false);
             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
             dialog.show();
+
+            mDialog = dialog;
         }
     }
 
     private void showUpdateSuccess() {
+        sWorkHandleLocked = true;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle("系统升级");
+        builder.setMessage("新版本升级成功！");
+        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
+        mDialog = dialog;
     }
 
     private void showUpdateFailed() {
+        sWorkHandleLocked = true;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle("系统升级");
+        builder.setMessage("新版本升级失败！");
+        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                sWorkHandleLocked = false;
+                dialog.dismiss();
+            }
+        });
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
+        mDialog = dialog;
     }
 
-    private boolean requestUpdate(URI remote) {
-        //TODO
-//        if (remote == null) {
-//            return false;
-//        }
-//
-//        HttpClient httpClient = CustomerHttpClient.getHttpClient();
-//        HttpHead httpHead = new HttpHead(remote);
-//
-//        HttpResponse response = httpClient.execute(httpHead);
-//        int statusCode = response.getStatusLine().getStatusCode();
-//
-//        if (statusCode != 200) {
-//            return false;
-//        }
-//        if (DEBUG) {
-//            for (Header header : response.getAllHeaders()) {
-//                Log.d(TAG, header.getName() + ":" + header.getValue());
-//            }
-//        }
-//
-//        Header[] headLength = response.getHeaders("OtaPackageLength");
-//        if (headLength != null && headLength.length > 0) {
-//            mOtaPackageLength = headLength[0].getValue();
-//        }
-//
-//        Header[] headName = response.getHeaders("OtaPackageName");
-//        if (headName == null) {
-//            return false;
-//        }
-//        if (headName.length > 0) {
-//            mOtaPackageName = headName[0].getValue();
-//        }
-//
-//        Header[] headVersion = response.getHeaders("OtaPackageVersion");
-//        if (headVersion != null && headVersion.length > 0) {
-//            mOtaPackageVersion = headVersion[0].getValue();
-//        }
-//
-//        Header[] headTargetURI = response.getHeaders("OtaPackageUri");
-//        if (headTargetURI == null) {
-//            return false;
-//        }
-//        if (headTargetURI.length > 0) {
-//            mTargetURI = headTargetURI[0].getValue();
-//        }
-//
-//        if (mOtaPackageName == null || mTargetURI == null) {
-//            Log.d(TAG, "server response format error!");
-//            return false;
-//        }
-//
-//        //get description from server response.
-//        Header[] headDescription = response.getHeaders("description");
-//        if (headDescription != null && headDescription.length > 0) {
-//            mDescription = new String(headDescription[0].getValue().getBytes("ISO8859_1"), "UTF-8");
-//        }
-//
-//        if (!mTargetURI.startsWith("http://") && !mTargetURI.startsWith("https://") && !mTargetURI.startsWith("ftp://")) {
-//            mTargetURI = "http://" + (mUseBackupHost ? getRemoteHostBackup() : getRemoteHost()) + (mTargetURI.startsWith("/") ? mTargetURI : ("/" + mTargetURI));
-//        }
-//
-//        mSystemVersion = getSystemVersionName();
-//
-//        Log.d(TAG, "OtaPackageName = " + mOtaPackageName + " OtaPackageVersion = " + mOtaPackageVersion
-//                + " OtaPackageLength = " + mOtaPackageLength + " SystemVersion = " + mSystemVersion
-//                + "OtaPackageUri = " + mTargetURI);
-        return true;
+    private void requestUpdate() {
+        if (TextUtils.isEmpty(SessionIDManager.instance(this).getSessionID())) {
+            SessionIDManager.instance(this).requestSessionID(new SessionIDManager.SessionIDListener() {
+                @Override
+                public void onSuccess(ApplyKeyRspData data) {
+                    requestUpdate(data.getSessionId(), data.getKey());
+                }
+
+                @Override
+                public void onFailed(int errCode) {
+                    Log.e(TAG, "requestUpdate->requestSessionID, onFailed errCode=" + errCode);
+                }
+            });
+        } else {
+            requestUpdate(SessionIDManager.instance(this).getSessionID(), SessionIDManager.instance(this).getKey());
+        }
+    }
+
+    private void requestUpdate(final String sessionId, final String key) {
+        UpgradeReqData reqData = new UpgradeReqData().withMac(AppUtils.getWifiMacAddr(this))
+                .withProductId(AppUtils.getProductId())
+                .withVersion(AppUtils.getSwVersionCode())
+                .withType(3);
+        String data = DataEncryptUtil.encryptData(reqData, SessionIDManager.instance(this).getKey());
+        ReqBody reqBody = new ReqBody().withSn(AppUtils.getUUID())
+                .withTime(String.valueOf(System.currentTimeMillis()))
+                .withSessionId(sessionId)
+                .withData(data);
+        Log.d(TAG, "requestUpdate, " + reqBody.toString() + ", " + reqData.toString());
+        HttpHelper.instance(this).getService(TopbandApi.class)
+                .getUpgradeInfo(reqBody)
+                .enqueue(new Callback<RspBody>() {
+                    @Override
+                    public void onResponse(Call<RspBody> call, Response<RspBody> response) {
+                        Log.i(TAG, "requestUpdate->onResponse, " + response.body().toString());
+                        if (response.body().getStatus() == 0) {
+                            // success
+                            UpgradeRspData data = DataEncryptUtil.decryptData(response.body().getData(),
+                                    UpgradeRspData.class,
+                                    key);
+                            if (null != data) {
+                                Log.d(TAG, "requestUpdate->onResponse, data=" + data.toString());
+                                showNewVersion(data);
+                            } else {
+                                Log.e(TAG, "requestUpdate->onResponse, data is null!");
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<RspBody> call, Throwable t) {
+                        Log.i(TAG, "requestUpdate->onFailure");
+                    }
+                });
+    }
+
+    private void download(final String url, final String path) {
+        Log.d(TAG, "download...");
+        mDownloadTaskId = FileDownloader.getImpl().create(url)
+                .setPath(path)
+                .setListener(new FileDownloadListener() {
+                    @Override
+                    protected void pending(BaseDownloadTask baseDownloadTask, int i, int i1) {
+
+                    }
+
+                    @Override
+                    protected void progress(BaseDownloadTask baseDownloadTask, int soFarBytes, int totalBytes) {
+                        long progress = soFarBytes/(totalBytes/100);
+                        Log.d(TAG, "download->progress, " + soFarBytes + "/" + totalBytes + " " + progress + "%");
+                        mDownloadPgr.setProgress((int)progress);
+                    }
+
+                    @Override
+                    protected void completed(BaseDownloadTask baseDownloadTask) {
+                        Log.d(TAG, "download->completed");
+                        if (null != mDialog && mDialog.isShowing()) {
+                            mDialog.dismiss();
+                        }
+                        showDownloaded(path);
+                    }
+
+                    @Override
+                    protected void paused(BaseDownloadTask baseDownloadTask, int i, int i1) {
+
+                    }
+
+                    @Override
+                    protected void error(BaseDownloadTask baseDownloadTask, Throwable throwable) {
+
+                    }
+
+                    @Override
+                    protected void warn(BaseDownloadTask baseDownloadTask) {
+
+                    }
+                }).start();
     }
 
     public static String readFlagCommand() {
@@ -551,21 +660,6 @@ public class UpdateService extends Service {
         }
     }
 
-    public static String getRemoteUri() {
-        //TODO
-        return "http://" + getRemoteHost() + "/OtaUpdater/android?product=" + getProductName() + "&version=" + getSystemVersionName()
-                + "&sn=" + getProductSN() + "&country=" + getCountry() + "&language=" + getLanguage();
-    }
-
-    public static String getRemoteHost() {
-        String remoteHost = AppUtils.getProperty("ro.product.ota.host", "");
-        if (TextUtils.isEmpty(remoteHost)) {
-            //TODO
-            remoteHost = "192.168.1.143:2300";
-        }
-        return remoteHost;
-    }
-
     private String getOtaPackageFileName() {
         String str = AppUtils.getProperty("ro.ota.packagename", "");
         if (!TextUtils.isEmpty(str) && !str.endsWith(".zip")) {
@@ -573,40 +667,6 @@ public class UpdateService extends Service {
         }
 
         return str;
-    }
-
-    private String getFirmwareVersion() {
-        return AppUtils.getProperty("ro.firmware.version", "");
-    }
-
-    private static String getProductName() {
-        return AppUtils.getProperty("ro.product.model", "");
-    }
-
-    public static String getSystemVersionName() {
-        String versionName = AppUtils.getProperty("ro.product.version", "");
-        if (TextUtils.isEmpty(versionName)) {
-            versionName = "1.0.0";
-        }
-
-        return versionName;
-    }
-
-    public static String getProductSN() {
-        String sn = AppUtils.getProperty("ro.serialno", "");
-        if (TextUtils.isEmpty(sn)) {
-            sn = "unknown";
-        }
-
-        return sn;
-    }
-
-    public static String getCountry() {
-        return Locale.getDefault().getCountry();
-    }
-
-    public static String getLanguage() {
-        return Locale.getDefault().getLanguage();
     }
 
     private void makeToast(final CharSequence msg) {

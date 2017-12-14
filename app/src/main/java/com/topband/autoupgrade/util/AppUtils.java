@@ -29,6 +29,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Created by Administrator on 2016/4/6.
@@ -39,6 +41,15 @@ public class AppUtils {
     // APP版本号
     private static String mVersionName = "";
     private static int mVersionCode = -1;
+
+    private static String mHwVersionName = "";
+    private static int mHwVersionCode = -1;
+
+    private static String mSwVersionName = "";
+    private static int mSwVersionCode = -1;
+
+    private static String mProduceName = "";
+    private static String mProduceId = "";
 
     // MAC地址获取
     private static String mEth0Mac = "";
@@ -76,6 +87,84 @@ public class AppUtils {
             }
         }
         return mVersionCode;
+    }
+
+    public static String getProductName() {
+        if (TextUtils.isEmpty(mProduceName)) {
+            mProduceName = AppUtils.getProperty("ro.product.model", "");
+        }
+        return mProduceName;
+    }
+
+    public static String getProductId() {
+        if (TextUtils.isEmpty(mProduceId)) {
+            mProduceId = AppUtils.getProperty("ro.topband.product.id", "");
+        }
+        return mProduceId;
+    }
+
+    public static int getHwVersionCode() {
+        if (-1 == mHwVersionCode) {
+            int versionCode = 0;
+            String value = getHwVersionName();
+            if (!TextUtils.isEmpty(value)) {
+                String[] arr = value.split("-");
+                if (arr.length > 0) {
+                    String str = arr[0].replace(".", "");
+                    mHwVersionCode = Integer.parseInt(str);
+                }
+            }
+        }
+        return mHwVersionCode;
+    }
+
+    public static String getHwVersionName() {
+        if (TextUtils.isEmpty(mHwVersionName)) {
+            mHwVersionName = AppUtils.getProperty("ro.topband.hw.version", "");
+        }
+        return mHwVersionName;
+    }
+
+    public static int getSwVersionCode() {
+        if (-1 == mSwVersionCode) {
+            String value = getSwVersionName();
+            if (!TextUtils.isEmpty(value)) {
+                String[] arr = value.split("-");
+                if (arr.length > 0) {
+                    String str = arr[0].replace(".", "");
+                    mSwVersionCode = Integer.parseInt(str);
+                }
+            }
+        }
+        return mSwVersionCode;
+    }
+
+    public static String getSwVersionName() {
+        if (TextUtils.isEmpty(mSwVersionName)) {
+            mSwVersionName = AppUtils.getProperty("ro.topband.sw.version", "");
+        }
+        return mSwVersionName;
+    }
+
+    public static String getAndroidVersion() {
+        return AppUtils.getProperty("ro.build.version.release", "");
+    }
+
+    public static String getProductSN() {
+        String sn = AppUtils.getProperty("ro.serialno", "");
+        if (TextUtils.isEmpty(sn)) {
+            sn = "unknown";
+        }
+
+        return sn;
+    }
+
+    public static String getCountry() {
+        return Locale.getDefault().getCountry();
+    }
+
+    public static String getLanguage() {
+        return Locale.getDefault().getLanguage();
     }
 
     public static boolean isConnNetWork(Context context) {
@@ -206,7 +295,7 @@ public class AppUtils {
                     sdcardDir = Environment.getExternalStorageDirectory();
                     Log.i(TAG, "Environment.MEDIA_MOUNTED :" + sdcardDir.getAbsolutePath() + " R:" + sdcardDir.canRead() + " W:" + sdcardDir.canWrite());
                     if (sdcardDir.canWrite()) {
-                        String dir = sdcardDir.getAbsolutePath() + "/com.topband.stresstest";
+                        String dir = sdcardDir.getAbsolutePath() + "/com.topband.autoupgrade";
                         File file = new File(dir);
                         if (!file.exists()) {
                             Log.i(TAG, "getRootDir, dir not exist and make dir");
@@ -219,7 +308,7 @@ public class AppUtils {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            sRootDir = context.getFilesDir().getAbsolutePath();
+            sRootDir = Environment.getDownloadCacheDirectory().getAbsolutePath();
         }
         return sRootDir;
     }
@@ -359,7 +448,7 @@ public class AppUtils {
         try {
             Class<?> c = Class.forName("android.os.SystemProperties");
             Method get = c.getMethod("get", String.class, String.class);
-            value = (String) (get.invoke(c, key, ""));
+            value = (String) (get.invoke(c, key, defaultValue));
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -381,5 +470,9 @@ public class AppUtils {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static String getUUID() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }
