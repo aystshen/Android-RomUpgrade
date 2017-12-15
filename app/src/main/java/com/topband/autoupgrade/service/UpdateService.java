@@ -106,6 +106,7 @@ public class UpdateService extends Service {
         public void installPackage(String packagePath) {
             Log.d(TAG, "installPackage, path: " + packagePath);
             try {
+                writeFlagCommand(packagePath);
                 RecoverySystem.installPackage(mContext, new File(packagePath));
             } catch (IOException e) {
                 Log.e(TAG, "installPackage, Reboot for installPackage failed: " + e);
@@ -253,7 +254,11 @@ public class UpdateService extends Service {
                         return;
                     }
 
-                    requestUpdate();
+                    if (AppUtils.isConnNetWork(getApplicationContext())) {
+                        requestUpdate();
+                    } else {
+                        Log.e(TAG, "WorkHandler, network is disconnect!");
+                    }
                     break;
 
                 case COMMAND_VERIFY_UPDATE_PACKAGE:
@@ -556,18 +561,23 @@ public class UpdateService extends Service {
                 .enqueue(new Callback<RspBody>() {
                     @Override
                     public void onResponse(Call<RspBody> call, Response<RspBody> response) {
-                        Log.i(TAG, "requestUpdate->onResponse, " + response.body().toString());
-                        if (response.body().getStatus() == 0) {
-                            // success
-                            UpgradeRspData data = DataEncryptUtil.decryptData(response.body().getData(),
-                                    UpgradeRspData.class,
-                                    key);
-                            if (null != data) {
-                                Log.d(TAG, "requestUpdate->onResponse, data=" + data.toString());
-                                showNewVersion(data);
-                            } else {
-                                Log.e(TAG, "requestUpdate->onResponse, data is null!");
+                        RspBody rspBody = response.body();
+                        if (null != rspBody) {
+                            Log.i(TAG, "requestUpdate->onResponse, " + rspBody.toString());
+                            if (rspBody.getStatus() == 0) {
+                                // success
+                                UpgradeRspData data = DataEncryptUtil.decryptData(rspBody.getData(),
+                                        UpgradeRspData.class,
+                                        key);
+                                if (null != data) {
+                                    Log.d(TAG, "requestUpdate->onResponse, data=" + data.toString());
+                                    showNewVersion(data);
+                                } else {
+                                    Log.e(TAG, "requestUpdate->onResponse, data is null!");
+                                }
                             }
+                        } else {
+                            Log.e(TAG, "requestUpdate->onResponse, body is null!");
                         }
                     }
 

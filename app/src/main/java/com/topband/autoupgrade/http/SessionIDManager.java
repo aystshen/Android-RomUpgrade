@@ -52,7 +52,7 @@ public class SessionIDManager {
         return DEFAULT_KEY;
     }
 
-    public synchronized void requestSessionID(final SessionIDListener listener){
+    public synchronized void requestSessionID(final SessionIDListener listener) {
         ApplyKeyReqData reqData = new ApplyKeyReqData().withSource("AutoUpgrade")
                 .withCompanyId("topband")
                 .withUserName("")
@@ -71,22 +71,27 @@ public class SessionIDManager {
                 .enqueue(new Callback<ApplyKeyRsp>() {
                     @Override
                     public void onResponse(Call<ApplyKeyRsp> call, Response<ApplyKeyRsp> response) {
-                        Log.i(TAG, "requestSessionID->onResponse, " + response.body().toString());
-                        if (response.body().getStatus() == 0) {
-                            // success
-                            sData = DataEncryptUtil.decryptData(response.body().getData(), ApplyKeyRspData.class, getKey());
-                            if (null != sData) {
-                                Log.d(TAG, "requestSessionID->onResponse, sData=" + sData.toString());
-                                if (null != listener) {
-                                    listener.onSuccess(sData);
+                        ApplyKeyRsp applyKeyRsp = response.body();
+                        if (null != applyKeyRsp) {
+                            Log.i(TAG, "requestSessionID->onResponse, " + applyKeyRsp.toString());
+                            if (applyKeyRsp.getStatus() == 0) {
+                                // success
+                                sData = DataEncryptUtil.decryptData(applyKeyRsp.getData(), ApplyKeyRspData.class, getKey());
+                                if (null != sData) {
+                                    Log.d(TAG, "requestSessionID->onResponse, sData=" + sData.toString());
+                                    if (null != listener) {
+                                        listener.onSuccess(sData);
+                                    }
+                                    return;
+                                } else {
+                                    Log.e(TAG, "requestSessionID->onResponse, sData is null!");
                                 }
-                                return;
-                            } else {
-                                Log.e(TAG, "requestSessionID->onResponse, sData is null!");
                             }
+                        } else {
+                            Log.e(TAG, "requestSessionID->onResponse, body is null!");
                         }
                         if (null != listener) {
-                            listener.onFailed(response.body().getStatus());
+                            listener.onFailed((null != applyKeyRsp) ? applyKeyRsp.getStatus() : -1);
                         }
                     }
 
@@ -102,6 +107,7 @@ public class SessionIDManager {
 
     public interface SessionIDListener {
         public void onSuccess(ApplyKeyRspData data);
+
         public void onFailed(int errCode);
     }
 }
