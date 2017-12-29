@@ -15,7 +15,7 @@ import retrofit2.http.POST;
  */
 
 public interface TopbandApi {
-    public final static String BASE_URL = "http://access.topband-cloud.com/api/";
+    public final static String BASE_URL = "http://web.topband-cloud.com/api/";
 
     @POST("applyKey")
     Call<ApplyKeyRsp> getApplyKey(@Body ReqBody reqBody);

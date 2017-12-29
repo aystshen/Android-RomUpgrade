@@ -54,6 +54,8 @@ public class AppUtils {
     // MAC地址获取
     private static String mEth0Mac = "";
     private static String mWifiMac = "";
+    private static String mMac = "";
+    private static String mMacNoColon = "";
     public static String mImei = "";
 
     // 屏幕宽高
@@ -198,10 +200,9 @@ public class AppUtils {
                 mEth0Mac = strBuf.toString();
                 reader.close();
             } catch (IOException ex) {
-                ex.printStackTrace();
+                Log.w(TAG, "eth0 mac not exist");
             }
         }
-        Log.d(TAG, "getEth0MacAddress, mac=" + mEth0Mac);
         return mEth0Mac;
     }
 
@@ -217,8 +218,27 @@ public class AppUtils {
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
             mWifiMac = wifiInfo.getMacAddress();
         }
-        Log.d(TAG, "getWifiMacAddr, mac=" + mWifiMac);
         return mWifiMac;
+    }
+
+    public static String getMac(Context context) {
+        if (TextUtils.isEmpty(mMac)) {
+            mMac = getEth0MacAddress(context);
+            if (TextUtils.isEmpty(mMac)) {
+                mMac = getWifiMacAddr(context);
+            }
+        }
+        return mMac;
+    }
+
+    public static String getMacNoColon(Context context) {
+        if (TextUtils.isEmpty(mMacNoColon)) {
+            String mac = getMac(context);
+            if (!TextUtils.isEmpty(mac)) {
+                mMacNoColon = mac.replace(":", "");
+            }
+        }
+        return mMacNoColon;
     }
 
     /**

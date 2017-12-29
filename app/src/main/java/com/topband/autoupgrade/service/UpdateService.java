@@ -169,9 +169,9 @@ public class UpdateService extends Service {
                     String path = command.substring(command.indexOf('=') + 1);
                     Log.d(TAG, "onCreate, last_flag: path=" + path);
 
+                    mLastUpdatePath = path;
+                    sIsNeedDeletePackage = true;
                     if (command.startsWith(COMMAND_FLAG_SUCCESS)) {
-                        mLastUpdatePath = path;
-                        sIsNeedDeletePackage = true;
                         showUpdateSuccess();
                     } else if (command.startsWith(COMMAND_FLAG_UPDATING)) {
                         showUpdateFailed();
@@ -546,7 +546,7 @@ public class UpdateService extends Service {
     }
 
     private void requestUpdate(final String sessionId, final String key) {
-        UpgradeReqData reqData = new UpgradeReqData().withMac(AppUtils.getWifiMacAddr(this))
+        UpgradeReqData reqData = new UpgradeReqData().withMac(AppUtils.getMacNoColon(this))
                 .withProductId(AppUtils.getProductId())
                 .withVersion(AppUtils.getSwVersionCode())
                 .withType(3);
@@ -635,13 +635,21 @@ public class UpdateService extends Service {
         if (UPDATE_FLAG_FILE.exists()) {
             char[] buf = new char[128];
             int readCount = 0;
+            FileReader reader = null;
             try {
-                FileReader reader = new FileReader(UPDATE_FLAG_FILE);
+                reader = new FileReader(UPDATE_FLAG_FILE);
                 readCount = reader.read(buf, 0, buf.length);
                 Log.d(TAG, "readFlagCommand, readCount=" + readCount + " buf.length=" + buf.length);
             } catch (IOException e) {
                 Log.e(TAG, "readFlagCommand, can not read: /cache/recovery/last_flag! \n" + e.getMessage());
             } finally {
+                if (null != reader) {
+                    try {
+                        reader.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
                 UPDATE_FLAG_FILE.delete();
             }
 
