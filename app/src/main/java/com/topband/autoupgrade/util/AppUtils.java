@@ -129,14 +129,16 @@ public class AppUtils {
 
     public static int getSwVersionCode() {
         if (-1 == mSwVersionCode) {
-            String value = getSwVersionName();
-            if (!TextUtils.isEmpty(value)) {
-                String[] arr = value.split("-");
-                if (arr.length > 0) {
-                    String str = arr[0].replace(".", "");
-                    mSwVersionCode = Integer.parseInt(str);
-                }
-            }
+//            String value = getSwVersionName();
+//            if (!TextUtils.isEmpty(value)) {
+//                String[] arr = value.split("-");
+//                if (arr.length > 0) {
+//                    String str = arr[0].replace(".", "");
+//                    mSwVersionCode = Integer.parseInt(str);
+//                }
+//            }
+            String value = AppUtils.getProperty("ro.topband.sw.versioncode", "0");
+            mSwVersionCode = Integer.parseInt(value);
         }
         return mSwVersionCode;
     }
