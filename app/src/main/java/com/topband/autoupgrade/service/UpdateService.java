@@ -243,7 +243,10 @@ public class UpdateService extends Service {
 
                     path = getValidPackageFile(PACKAGE_FILE_DIRS);
                     if (!TextUtils.isEmpty(path)) {
+                        Log.d(TAG, "WorkHandler, find update file: " + path);
                         showNewVersion(path);
+                    } else {
+                        Log.d(TAG, "WorkHandler, not found update file");
                     }
                     break;
 
