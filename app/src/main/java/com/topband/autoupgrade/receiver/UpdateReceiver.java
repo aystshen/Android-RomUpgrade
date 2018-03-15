@@ -37,16 +37,16 @@ public class UpdateReceiver extends BroadcastReceiver {
         Log.d(TAG, "onReceive, action = " + action);
         Intent serviceIntent;
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
-            serviceIntent = new Intent(context, UpdateService.class);
-            serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
-            serviceIntent.putExtra("delay", 20000);
-            context.startService(serviceIntent);
+//            serviceIntent = new Intent(context, UpdateService.class);
+//            serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
+//            serviceIntent.putExtra("delay", 20000);
+//            context.startService(serviceIntent);
 
             serviceIntent = new Intent(context, UpdateService.class);
             serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_REMOTE_UPDATING);
             serviceIntent.putExtra("delay", 25000);
             context.startService(serviceIntent);
-
+            Log.d(TAG, "onReceive, Boot completed. To check remote update.");
             isBootCompleted = true;
         } else if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {
             String[] path = {intent.getData().getPath()};
@@ -54,7 +54,7 @@ public class UpdateReceiver extends BroadcastReceiver {
             serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
             serviceIntent.putExtra("delay", 5000);
             context.startService(serviceIntent);
-            Log.d(TAG, "onReceive, media is mounted to '" + path[0] + "'. To check local update.");
+            Log.d(TAG, "onReceive, Media is mounted to '" + path[0] + "'. To check local update.");
         } else if ("android.hardware.usb.action.USB_STATE".equals(action)) {
             Bundle extras = intent.getExtras();
             boolean connected = extras.getBoolean("connected");
@@ -67,6 +67,7 @@ public class UpdateReceiver extends BroadcastReceiver {
                 serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
                 serviceIntent.putExtra("delay", 5000);
                 context.startService(serviceIntent);
+                Log.d(TAG, "onReceive, Udisk is connected. To check local update.");
             }
         } else if (action.equals(ConnectivityManager.CONNECTIVITY_ACTION)) {
             if (AppUtils.isConnNetWork(context)) {
@@ -74,6 +75,7 @@ public class UpdateReceiver extends BroadcastReceiver {
                 serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_REMOTE_UPDATING);
                 serviceIntent.putExtra("delay", 5000);
                 context.startService(serviceIntent);
+                Log.d(TAG, "onReceive, Network is connected. To check remote update.");
             }
         }
     }
