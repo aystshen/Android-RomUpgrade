@@ -27,9 +27,12 @@ import android.util.Log;
 import com.topband.autoupgrade.service.UpdateService;
 import com.topband.autoupgrade.util.AppUtils;
 
+import java.lang.reflect.Method;
+
 public class UpdateReceiver extends BroadcastReceiver {
     private final static String TAG = "UpdateReceiver";
     private static boolean isBootCompleted = false;
+    private static int mVolumeState = -1;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -77,6 +80,16 @@ public class UpdateReceiver extends BroadcastReceiver {
                 context.startService(serviceIntent);
                 Log.d(TAG, "onReceive, Network is connected. To check remote update.");
             }
+        } else if(action.equals("android.os.storage.action.VOLUME_STATE_CHANGED")){
+            int state = intent.getIntExtra("android.os.storage.extra.VOLUME_STATE", 0);
+            if (mVolumeState == 0 && state == 2) {
+                serviceIntent = new Intent(context, UpdateService.class);
+                serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
+                serviceIntent.putExtra("delay", 5000);
+                context.startService(serviceIntent);
+                Log.d(TAG, "onReceive, Volume is mounted. To check local update.");
+            }
+            mVolumeState = state;
         }
     }
 }

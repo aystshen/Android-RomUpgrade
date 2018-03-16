@@ -15,6 +15,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -69,6 +70,7 @@ public class UpdateService extends Service {
     public static final String FLASH_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath();
     public static final String SDCARD_ROOT = "/mnt/external_sd";
     public static final String USB_ROOT = "/mnt/usb_storage";
+    public static final String USB_ROOT_M = "/mnt/media_rw";
     public static final String CACHE_ROOT = Environment.getDownloadCacheDirectory().getAbsolutePath();
     private static final String[] PACKAGE_FILE_DIRS = {
             DATA_ROOT + "/",
@@ -305,7 +307,12 @@ public class UpdateService extends Service {
         }
 
         //find usb device update package
-        File usbRoot = new File(USB_ROOT);
+        String usbRootDir = USB_ROOT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            usbRootDir = USB_ROOT_M;
+        }
+        Log.i(TAG, "getValidPackageFile, find usb: " + usbRootDir);
+        File usbRoot = new File(usbRootDir);
         if (usbRoot.listFiles() == null) {
             return null;
         }
