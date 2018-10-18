@@ -67,6 +67,9 @@ public class UpdateService extends Service {
     public static final int UPDATE_SUCCESS = 1;
     public static final int UPDATE_FAILED = 2;
 
+    public static final int UPDATE_TYPE_RECOMMEND = 1;
+    public static final int UPDATE_TYPE_FORCE = 2;
+
     public static final String USB_CONFIG_FILENAME = "config.ini";
 
     public static final String DATA_ROOT = "/data/media/0";
@@ -87,11 +90,11 @@ public class UpdateService extends Service {
 
     private Context mContext;
     private volatile boolean mIsFirstStartUp = true;
+    private int mUpdateType = UPDATE_TYPE_RECOMMEND;
 
     private String mLastUpdatePath;
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
-    private UsbConfigManager mUsbConfigManager = null;
 
     private Dialog mDialog = null;
     private ProgressBar mDownloadPgr = null;
@@ -250,25 +253,8 @@ public class UpdateService extends Service {
                     path = getValidPackageFile(PACKAGE_FILE_DIRS);
                     if (!TextUtils.isEmpty(path)) {
                         Log.d(TAG, "WorkHandler, find update file: " + path);
-                        if (null != mUsbConfigManager
-                                && mUsbConfigManager.getUpdateType()
-                                .equals(UsbConfigManager.UPDATE_TYPE_FORCE)) {
+                        if (UPDATE_TYPE_FORCE == mUpdateType) {
                             showNewVersionOfForce(path);
-
-                            final String packageFile = path;
-                            mMainHandler.postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    mDialog.dismiss();
-
-                                    Message msg = new Message();
-                                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                                    Bundle b = new Bundle();
-                                    b.putString("path", packageFile);
-                                    msg.setData(b);
-                                    mWorkHandler.sendMessage(msg);
-                                }
-                            }, 5000);
                         } else {
                             showNewVersion(path);
                         }
@@ -327,7 +313,7 @@ public class UpdateService extends Service {
         for (String dirPath : searchPaths) {
             String path = dirPath + USB_CONFIG_FILENAME;
             if ((new File(path)).exists()) {
-                mUsbConfigManager = new UsbConfigManager(this, new File(path));
+                mUpdateType = new UsbConfigManager(this, new File(path)).getUpdateType();
                 Log.d(TAG, "getValidPackageFile, find config file: " + path);
             }
 
@@ -367,7 +353,7 @@ public class UpdateService extends Service {
                 if (files != null && files.length > 0) {
                     for (File tmpFile : files) {
                         if (tmpFile.getName().equals(USB_CONFIG_FILENAME)) {
-                            mUsbConfigManager = new UsbConfigManager(this, new File(tmpFile.getAbsolutePath()));
+                            mUpdateType = new UsbConfigManager(this, new File(tmpFile.getAbsolutePath())).getUpdateType();
                             Log.d(TAG, "getValidPackageFile, find config file: " + tmpFile.getAbsolutePath());
                         }
 
@@ -384,21 +370,6 @@ public class UpdateService extends Service {
         }
 
         return "";
-    }
-
-    private void showNewVersionOfForce(final String path) {
-        if (!TextUtils.isEmpty(path)) {
-            sWorkHandleLocked = true;
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle("系统升级");
-            builder.setMessage("发现新的系统版本，5秒后将自动升级！\n" + path);
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
-
-            mDialog = dialog;
-        }
     }
 
     private void showNewVersion(final String path) {
@@ -435,6 +406,33 @@ public class UpdateService extends Service {
         }
     }
 
+    private void showNewVersionOfForce(final String path) {
+        if (!TextUtils.isEmpty(path)) {
+            sWorkHandleLocked = true;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            builder.setTitle("系统升级");
+            builder.setMessage("发现新的系统版本，5秒后将自动升级！\n" + path);
+            final Dialog dialog = builder.create();
+            dialog.setCancelable(false);
+            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            dialog.show();
+            mDialog = dialog;
+
+            mMainHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    Message msg = new Message();
+                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                    Bundle b = new Bundle();
+                    b.putString("path", path);
+                    msg.setData(b);
+                    mWorkHandler.sendMessage(msg);
+                    dialog.dismiss();
+                }
+            }, 5000);
+        }
+    }
+
     private void showNewVersion(final UpgradeRspData data) {
         if (null != data) {
             sWorkHandleLocked = true;
@@ -463,6 +461,30 @@ public class UpdateService extends Service {
             dialog.show();
 
             mDialog = dialog;
+        }
+    }
+
+    private void showNewVersionOfForce(final UpgradeRspData data) {
+        if (null != data) {
+            sWorkHandleLocked = true;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            builder.setTitle("系统升级");
+            builder.setMessage("发现新的系统版本，5秒后将自动下载升级！\n" + data.getDesc());
+            final Dialog dialog = builder.create();
+            dialog.setCancelable(false);
+            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            dialog.show();
+            mDialog = dialog;
+
+            mMainHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    String path = AppUtils.getDir(getApplicationContext(), "upgrade") + "/update.zip";
+                    download(data.getPakgUrl(), path);
+                    showDownloading();
+                    dialog.dismiss();
+                }
+            }, 5000);
         }
     }
 
@@ -525,6 +547,30 @@ public class UpdateService extends Service {
         dialog.show();
 
         mDialog = dialog;
+    }
+
+    private void showDownloadedOfForce(final String path) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle("系统升级");
+        builder.setMessage("新版本已经下载完成，5秒后将自动升级");
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+        mDialog = dialog;
+
+        mMainHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                Message msg = new Message();
+                msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                Bundle b = new Bundle();
+                b.putString("path", path);
+                msg.setData(b);
+                mWorkHandler.sendMessage(msg);
+                dialog.dismiss();
+            }
+        }, 5000);
     }
 
     private void showInvalidPackage(final String path) {
@@ -643,7 +689,12 @@ public class UpdateService extends Service {
                                         key);
                                 if (null != data) {
                                     Log.d(TAG, "requestUpdate->onResponse, data=" + data.toString());
-                                    showNewVersion(data);
+                                    mUpdateType = data.getUpgradeType();
+                                    if (UPDATE_TYPE_FORCE == mUpdateType) {
+                                        showNewVersionOfForce(data);
+                                    } else {
+                                        showNewVersion(data);
+                                    }
                                 } else {
                                     Log.e(TAG, "requestUpdate->onResponse, data is null!");
                                 }
@@ -683,7 +734,11 @@ public class UpdateService extends Service {
                         if (null != mDialog && mDialog.isShowing()) {
                             mDialog.dismiss();
                         }
-                        showDownloaded(path);
+                        if (UPDATE_TYPE_FORCE == mUpdateType) {
+                            showDownloadedOfForce(path);
+                        } else {
+                            showDownloaded(path);
+                        }
                     }
 
                     @Override

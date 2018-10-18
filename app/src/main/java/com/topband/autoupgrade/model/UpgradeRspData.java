@@ -6,7 +6,6 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 public class UpgradeRspData implements Serializable {
-
     @SerializedName("pakgUrl")
     @Expose
     private String pakgUrl;

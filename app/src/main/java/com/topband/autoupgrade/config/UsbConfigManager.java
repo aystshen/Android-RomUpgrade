@@ -16,15 +16,12 @@ public class UsbConfigManager {
     private final static String TAG = "UsbConfigManager";
 
     public final static String UPDATE_TYPE = "UPDATE_TYPE";
-    public final static String UPDATE_TYPE_RECOMMEND = "1";
-    public final static String UPDATE_TYPE_FORCE = "2";
-
 
     private Context mContext;
     private File mConfigFile;
 
     private Properties mCfgProperties = null;
-    private String mUpdateType = "";
+    private int mUpdateType = -1;
 
     public UsbConfigManager(Context context, File configFile) {
         mContext = context;
@@ -49,12 +46,18 @@ public class UsbConfigManager {
         return mCfgProperties;
     }
 
-    public String getUpdateType() {
-        if (TextUtils.isEmpty(mUpdateType)) {
+    public int getUpdateType() {
+        if (-1 == mUpdateType) {
             Properties properties = getProperties();
-            mUpdateType = properties.getProperty(UPDATE_TYPE, UPDATE_TYPE_RECOMMEND);
+            String updateTypeStr = properties.getProperty(UPDATE_TYPE, "1");
+            try {
+                mUpdateType = Integer.parseInt(updateTypeStr);
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            }
             Log.i(TAG, "getUpdateType, value:" + mUpdateType);
         }
+
         return mUpdateType;
     }
 }
