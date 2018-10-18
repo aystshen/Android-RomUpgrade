@@ -36,6 +36,7 @@ import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.FileDownloadListener;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.topband.autoupgrade.R;
+import com.topband.autoupgrade.config.UsbConfigManager;
 import com.topband.autoupgrade.http.HttpHelper;
 import com.topband.autoupgrade.http.SessionIDManager;
 import com.topband.autoupgrade.http.TopbandApi;
@@ -66,6 +67,8 @@ public class UpdateService extends Service {
     public static final int UPDATE_SUCCESS = 1;
     public static final int UPDATE_FAILED = 2;
 
+    public static final String USB_CONFIG_FILENAME = "config.ini";
+
     public static final String DATA_ROOT = "/data/media/0";
     public static final String FLASH_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath();
     public static final String SDCARD_ROOT = "/mnt/external_sd";
@@ -88,6 +91,7 @@ public class UpdateService extends Service {
     private String mLastUpdatePath;
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
+    private UsbConfigManager mUsbConfigManager = null;
 
     private Dialog mDialog = null;
     private ProgressBar mDownloadPgr = null;
@@ -246,7 +250,28 @@ public class UpdateService extends Service {
                     path = getValidPackageFile(PACKAGE_FILE_DIRS);
                     if (!TextUtils.isEmpty(path)) {
                         Log.d(TAG, "WorkHandler, find update file: " + path);
-                        showNewVersion(path);
+                        if (null != mUsbConfigManager
+                                && mUsbConfigManager.getUpdateType()
+                                .equals(UsbConfigManager.UPDATE_TYPE_FORCE)) {
+                            showNewVersionOfForce(path);
+
+                            final String packageFile = path;
+                            mMainHandler.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mDialog.dismiss();
+
+                                    Message msg = new Message();
+                                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                                    Bundle b = new Bundle();
+                                    b.putString("path", packageFile);
+                                    msg.setData(b);
+                                    mWorkHandler.sendMessage(msg);
+                                }
+                            }, 5000);
+                        } else {
+                            showNewVersion(path);
+                        }
                     } else {
                         Log.d(TAG, "WorkHandler, not found update file");
                     }
@@ -298,12 +323,22 @@ public class UpdateService extends Service {
     }
 
     private String getValidPackageFile(String searchPaths[]) {
+        String packageFile = "";
         for (String dirPath : searchPaths) {
-            String filePath = dirPath + sOtaPackageName;
-            if ((new File(filePath)).exists()) {
-                Log.d(TAG, "getValidPackageFile, find package file: " + filePath);
-                return filePath;
+            String path = dirPath + USB_CONFIG_FILENAME;
+            if ((new File(path)).exists()) {
+                mUsbConfigManager = new UsbConfigManager(this, new File(path));
+                Log.d(TAG, "getValidPackageFile, find config file: " + path);
             }
+
+            path = dirPath + sOtaPackageName;
+            if ((new File(path)).exists()) {
+                packageFile = path;
+                Log.d(TAG, "getValidPackageFile, find package file: " + packageFile);
+            }
+        }
+        if (!packageFile.isEmpty()) {
+            return packageFile;
         }
 
         //find usb device update package
@@ -314,7 +349,7 @@ public class UpdateService extends Service {
         Log.i(TAG, "getValidPackageFile, find usb: " + usbRootDir);
         File usbRoot = new File(usbRootDir);
         if (usbRoot.listFiles() == null) {
-            return null;
+            return "";
         }
 
         for (File file : usbRoot.listFiles()) {
@@ -324,19 +359,46 @@ public class UpdateService extends Service {
                     @Override
                     public boolean accept(File tmpFile) {
                         Log.d(TAG, "getValidPackageFile, scan usb files: " + tmpFile.getAbsolutePath());
-                        return !tmpFile.isDirectory() && tmpFile.getName().equals(sOtaPackageName);
+                        return (!tmpFile.isDirectory() && (tmpFile.getName().equals(sOtaPackageName)
+                                || tmpFile.getName().equals(USB_CONFIG_FILENAME)));
                     }
                 });
 
                 if (files != null && files.length > 0) {
-                    String filePath = files[0].getAbsolutePath();
-                    Log.d(TAG, "getValidPackageFile, find package file: " + filePath);
-                    return filePath;
+                    for (File tmpFile : files) {
+                        if (tmpFile.getName().equals(USB_CONFIG_FILENAME)) {
+                            mUsbConfigManager = new UsbConfigManager(this, new File(tmpFile.getAbsolutePath()));
+                            Log.d(TAG, "getValidPackageFile, find config file: " + tmpFile.getAbsolutePath());
+                        }
+
+                        if (tmpFile.getName().equals(sOtaPackageName)) {
+                            packageFile = tmpFile.getAbsolutePath();
+                            Log.d(TAG, "getValidPackageFile, find package file: " + packageFile);
+                        }
+                    }
+                    if (!packageFile.isEmpty()) {
+                        return packageFile;
+                    }
                 }
             }
         }
 
         return "";
+    }
+
+    private void showNewVersionOfForce(final String path) {
+        if (!TextUtils.isEmpty(path)) {
+            sWorkHandleLocked = true;
+            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            builder.setTitle("系统升级");
+            builder.setMessage("发现新的系统版本，5秒后将自动升级！\n" + path);
+            final Dialog dialog = builder.create();
+            dialog.setCancelable(false);
+            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            dialog.show();
+
+            mDialog = dialog;
+        }
     }
 
     private void showNewVersion(final String path) {
