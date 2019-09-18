@@ -5,7 +5,6 @@ import java.io.FileFilter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
 import java.security.GeneralSecurityException;
 
 import android.app.AlertDialog;
@@ -37,6 +36,7 @@ import com.liulishuo.filedownloader.FileDownloadListener;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.topband.autoupgrade.R;
 import com.topband.autoupgrade.config.UsbConfigManager;
+import com.topband.autoupgrade.helper.Mcu;
 import com.topband.autoupgrade.http.HttpHelper;
 import com.topband.autoupgrade.http.SessionIDManager;
 import com.topband.autoupgrade.http.TopbandApi;
@@ -85,12 +85,14 @@ public class UpdateService extends Service {
             USB_ROOT + "/",
     };
 
-    private static File RECOVERY_DIR = new File("/cache/recovery");
-    private static File UPDATE_FLAG_FILE = new File(RECOVERY_DIR, "last_flag");
+    private static final String RECOVERY_DIR = "/cache/recovery";
+    private static final String UPDATE_FLAG_FILE = RECOVERY_DIR + "/last_flag";
+    private static final String OTHER_FLAG_FILE = RECOVERY_DIR + "/other_flag";
 
     private Context mContext;
     private volatile boolean mIsFirstStartUp = true;
     private int mUpdateType = UPDATE_TYPE_RECOMMEND;
+    private Mcu mMcu;
 
     private String mLastUpdatePath;
     private WorkHandler mWorkHandler;
@@ -114,8 +116,14 @@ public class UpdateService extends Service {
     public class LocalBinder extends Binder {
         public void installPackage(String packagePath) {
             Log.d(TAG, "installPackage, path: " + packagePath);
+
             try {
-                writeFlagCommand(packagePath);
+                writeFlag(OTHER_FLAG_FILE, "watchdog=" + (mMcu.watchdogIsOpen() ? "true" : "false"));
+                writeFlag(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
+
+                // 安装升级包前一定要关闭watchdog，否则升级过程中watchdog超时复位将导致严重后果
+                mMcu.closeWatchdog();
+
                 RecoverySystem.installPackage(mContext, new File(packagePath));
             } catch (IOException e) {
                 Log.e(TAG, "installPackage, Reboot for installPackage failed: " + e);
@@ -156,6 +164,7 @@ public class UpdateService extends Service {
         Log.d(TAG, "onCreate");
 
         mContext = this;
+        mMcu = new Mcu(this);
 
         String otaPackageFileName = getOtaPackageFileName();
         if (!TextUtils.isEmpty(otaPackageFileName)) {
@@ -168,26 +177,7 @@ public class UpdateService extends Service {
         workThread.start();
         mWorkHandler = new WorkHandler(workThread.getLooper());
 
-        if (mIsFirstStartUp) {
-            Log.d(TAG, "onCreate, first startup!!!");
-            mIsFirstStartUp = false;
-            String command = readFlagCommand();
-            if (!TextUtils.isEmpty(command)) {
-                Log.d(TAG, "command = " + command);
-                if (command.contains("$path")) {
-                    String path = command.substring(command.indexOf('=') + 1);
-                    Log.d(TAG, "onCreate, last_flag: path=" + path);
-
-                    mLastUpdatePath = path;
-                    sIsNeedDeletePackage = true;
-                    if (command.startsWith(COMMAND_FLAG_SUCCESS)) {
-                        showUpdateSuccess();
-                    } else if (command.startsWith(COMMAND_FLAG_UPDATING)) {
-                        showUpdateFailed();
-                    }
-                }
-            }
-        }
+        checkUpdateFlag();
     }
 
     @Override
@@ -492,7 +482,7 @@ public class UpdateService extends Service {
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
         builder.setTitle("系统升级");
         builder.setMessage("正在下载新版本，请稍候...");
-        LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View view = inflater.inflate(R.layout.layout_download, null);
         mDownloadPgr = (ProgressBar) view.findViewById(R.id.pgr_download);
         builder.setView(view);
@@ -723,9 +713,9 @@ public class UpdateService extends Service {
 
                     @Override
                     protected void progress(BaseDownloadTask baseDownloadTask, int soFarBytes, int totalBytes) {
-                        long progress = soFarBytes/(totalBytes/100);
+                        long progress = soFarBytes / (totalBytes / 100);
                         Log.d(TAG, "download->progress, " + soFarBytes + "/" + totalBytes + " " + progress + "%");
-                        mDownloadPgr.setProgress((int)progress);
+                        mDownloadPgr.setProgress((int) progress);
                     }
 
                     @Override
@@ -758,17 +748,19 @@ public class UpdateService extends Service {
                 }).start();
     }
 
-    public static String readFlagCommand() {
-        if (UPDATE_FLAG_FILE.exists()) {
-            char[] buf = new char[128];
+    public static String readFlag(String filename) {
+        File file = new File(filename);
+        if (file.exists()) {
+            char[] buf = new char[256];
             int readCount = 0;
             FileReader reader = null;
+
             try {
-                reader = new FileReader(UPDATE_FLAG_FILE);
+                reader = new FileReader(file);
                 readCount = reader.read(buf, 0, buf.length);
-                Log.d(TAG, "readFlagCommand, readCount=" + readCount + " buf.length=" + buf.length);
+                Log.d(TAG, "readFlag, readCount=" + readCount + " buf.length=" + buf.length);
             } catch (IOException e) {
-                Log.e(TAG, "readFlagCommand, can not read: /cache/recovery/last_flag! \n" + e.getMessage());
+                Log.e(TAG, "readFlag, can not read: " + filename + "\n" + e.getMessage());
             } finally {
                 if (null != reader) {
                     try {
@@ -777,31 +769,86 @@ public class UpdateService extends Service {
                         e.printStackTrace();
                     }
                 }
-                UPDATE_FLAG_FILE.delete();
+                file.delete();
             }
 
-            StringBuilder sBuilder = new StringBuilder();
+            StringBuilder builder = new StringBuilder();
             for (int i = 0; i < readCount; i++) {
                 if (buf[i] == 0) {
                     break;
                 }
-                sBuilder.append(buf[i]);
+                builder.append(buf[i]);
             }
-            return sBuilder.toString();
+            return builder.toString();
         } else {
-            Log.d(TAG, "readFlagCommand, " + UPDATE_FLAG_FILE.getPath() + " not exist");
-            return "";
+            Log.d(TAG, "readFlag, " + filename + " not exist");
+        }
+
+        return "";
+    }
+
+    public static void writeFlag(String filename, String flag) throws IOException {
+        if (TextUtils.isEmpty(filename) || TextUtils.isEmpty(flag)) {
+            Log.w(TAG, "writeFlag, filename or flag is null.");
+            return;
+        }
+
+        File recoveryDir = new File(RECOVERY_DIR);
+        if (!recoveryDir.exists()) {
+            recoveryDir.mkdirs();
+        }
+
+        File file = new File(filename);
+        if (file.exists()) {
+            file.delete();
+        }
+        FileWriter writer = new FileWriter(file);
+        try {
+            writer.write(flag);
+        } finally {
+            writer.close();
         }
     }
 
-    public static void writeFlagCommand(String path) throws IOException {
-        RECOVERY_DIR.mkdirs();
-        UPDATE_FLAG_FILE.delete();
-        FileWriter writer = new FileWriter(UPDATE_FLAG_FILE);
-        try {
-            writer.write("updating$path=" + path);
-        } finally {
-            writer.close();
+    private void checkUpdateFlag() {
+        if (mIsFirstStartUp) {
+            Log.d(TAG, "checkUpdateFlag, first startup!!!");
+
+            mIsFirstStartUp = false;
+
+            String flag = readFlag(UPDATE_FLAG_FILE);
+            if (!TextUtils.isEmpty(flag)) {
+                Log.d(TAG, "checkUpdateFlag, flag = " + flag);
+                String[] array = flag.split("$");
+                if (array.length == 2) {
+                    if (array[1].startsWith("path")) {
+                        mLastUpdatePath = array[1].substring(array[1].indexOf('=') + 1);
+                    }
+
+                    sIsNeedDeletePackage = true;
+                    if (TextUtils.equals(COMMAND_FLAG_SUCCESS, array[0])) {
+                        showUpdateSuccess();
+                    } else if (TextUtils.equals(COMMAND_FLAG_UPDATING, array[0])) {
+                        showUpdateFailed();
+                    }
+                }
+            }
+
+            flag = readFlag(OTHER_FLAG_FILE);
+            if (!TextUtils.isEmpty(flag)) {
+                Log.d(TAG, "checkUpdateFlag, flag = " + flag);
+                String[] array = flag.split("$");
+                for (String param : array) {
+                    if (param.startsWith("watchdog")) {
+                        String value = param.substring(param.indexOf('=') + 1);
+                        Log.d(TAG, "checkUpdateFlag, watchdog=" + value);
+
+                        if (TextUtils.equals("true", value)) {
+                            mMcu.openWatchdog();
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -821,5 +868,4 @@ public class UpdateService extends Service {
             }
         });
     }
-
 }
