@@ -62,19 +62,6 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name=".service.CommandService"
-            android:enabled="true"
-            android:exported="true" />
-
-        <receiver
-            android:name=".receiver.CommandReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.android.action.COMMAND" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>
