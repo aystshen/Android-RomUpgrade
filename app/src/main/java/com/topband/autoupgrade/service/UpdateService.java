@@ -36,6 +36,7 @@ import com.liulishuo.filedownloader.FileDownloadListener;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.topband.autoupgrade.R;
 import com.topband.autoupgrade.config.UsbConfigManager;
+import com.topband.autoupgrade.helper.AndroidX;
 import com.topband.autoupgrade.helper.Mcu;
 import com.topband.autoupgrade.http.HttpHelper;
 import com.topband.autoupgrade.http.SessionIDManager;
@@ -92,7 +93,7 @@ public class UpdateService extends Service {
     private Context mContext;
     private volatile boolean mIsFirstStartUp = true;
     private int mUpdateType = UPDATE_TYPE_RECOMMEND;
-    private Mcu mMcu;
+    private AndroidX mAndroidX;
 
     private String mLastUpdatePath;
     private WorkHandler mWorkHandler;
@@ -118,11 +119,11 @@ public class UpdateService extends Service {
             Log.d(TAG, "installPackage, path: " + packagePath);
 
             try {
-                writeFlag(OTHER_FLAG_FILE, "watchdog=" + (mMcu.watchdogIsOpen() ? "true" : "false"));
+                writeFlag(OTHER_FLAG_FILE, "watchdog=" + (mAndroidX.watchdogIsOpen() ? "true" : "false"));
                 writeFlag(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
 
                 // 安装升级包前一定要关闭watchdog，否则升级过程中watchdog超时复位将导致严重后果
-                mMcu.closeWatchdog();
+                mAndroidX.toggleWatchdog(false);
 
                 RecoverySystem.installPackage(mContext, new File(packagePath));
             } catch (IOException e) {
@@ -164,7 +165,7 @@ public class UpdateService extends Service {
         Log.d(TAG, "onCreate");
 
         mContext = this;
-        mMcu = new Mcu(this);
+        mAndroidX = new AndroidX(this);
 
         String otaPackageFileName = getOtaPackageFileName();
         if (!TextUtils.isEmpty(otaPackageFileName)) {
@@ -844,7 +845,7 @@ public class UpdateService extends Service {
                         Log.d(TAG, "checkUpdateFlag, watchdog=" + value);
 
                         if (TextUtils.equals("true", value)) {
-                            mMcu.openWatchdog();
+                            mAndroidX.toggleWatchdog(true);
                         }
                     }
                 }
@@ -868,4 +869,6 @@ public class UpdateService extends Service {
             }
         });
     }
+
+
 }

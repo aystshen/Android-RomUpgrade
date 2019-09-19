@@ -19,6 +19,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
+    <permission
+        android:name="com.ayst.androidx.permission.SELF_BROADCAST"
+        android:protectionLevel="normal" />
+
     <application
         android:name=".App"
         android:allowBackup="true"
