@@ -8,11 +8,6 @@ import com.google.gson.stream.JsonReader;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.StringReader;
-
-import okhttp3.ResponseBody;
-
 /**
  * Created by Administrator on 2017/12/12.
  */

@@ -1,28 +1,16 @@
 package com.topband.autoupgrade.util;
 
 import android.app.Activity;
-import android.app.Service;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.res.TypedArray;
-import android.database.Cursor;
-import android.graphics.drawable.Drawable;
-import android.hardware.Camera;
-import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.os.Build;
 import android.os.Environment;
-import android.os.Vibrator;
-import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.TypedValue;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -33,38 +21,46 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Created by Administrator on 2016/4/6.
+ * Created by ayst.shen@foxmail.com on 2016/4/6.
  */
 public class AppUtils {
     private final static String TAG = "AppUtils";
 
-    // APP版本号
+    // Application version
     private static String mVersionName = "";
     private static int mVersionCode = -1;
 
+    // Hardware version
     private static String mHwVersionName = "";
     private static int mHwVersionCode = -1;
 
+    // Firmware version
     private static String mSwVersionName = "";
     private static int mSwVersionCode = -1;
 
+    // Product
     private static String mProduceName = "";
     private static String mProduceId = "";
 
-    // MAC地址获取
+    // MAC
     private static String mEth0Mac = "";
     private static String mWifiMac = "";
     private static String mMac = "";
     private static String mMacNoColon = "";
     public static String mImei = "";
 
-    // 屏幕宽高
+    // Screen
     private static int mScreenWidth = -1;
     private static int mScreenHeight = -1;
 
-    // 目录
+    // Storage
     private static String sRootDir = "";
 
+    /**
+     * Get application version name
+     * @param context Context
+     * @return version name
+     */
     public static String getVersionName(Context context) {
         if (TextUtils.isEmpty(mVersionName)) {
             try {
@@ -78,6 +74,11 @@ public class AppUtils {
         return mVersionName;
     }
 
+    /**
+     * Get application version code
+     * @param context Context
+     * @return version code
+     */
     public static int getVersionCode(Context context) {
         if (-1 == mVersionCode) {
             try {
@@ -91,6 +92,10 @@ public class AppUtils {
         return mVersionCode;
     }
 
+    /**
+     * Get product name
+     * @return product name
+     */
     public static String getProductName() {
         if (TextUtils.isEmpty(mProduceName)) {
             mProduceName = AppUtils.getProperty("ro.product.model", "");
@@ -98,6 +103,10 @@ public class AppUtils {
         return mProduceName;
     }
 
+    /**
+     * Get product id
+     * @return product id
+     */
     public static String getProductId() {
         if (TextUtils.isEmpty(mProduceId)) {
             mProduceId = AppUtils.getProperty("ro.topband.product.id", "");
@@ -105,6 +114,10 @@ public class AppUtils {
         return mProduceId;
     }
 
+    /**
+     * Get hardware version code
+     * @return version code
+     */
     public static int getHwVersionCode() {
         if (-1 == mHwVersionCode) {
             int versionCode = 0;
@@ -120,6 +133,10 @@ public class AppUtils {
         return mHwVersionCode;
     }
 
+    /**
+     * Get hardware version name
+     * @return version name
+     */
     public static String getHwVersionName() {
         if (TextUtils.isEmpty(mHwVersionName)) {
             mHwVersionName = AppUtils.getProperty("ro.topband.hw.version", "");
@@ -127,22 +144,22 @@ public class AppUtils {
         return mHwVersionName;
     }
 
+    /**
+     * Get firmware version code
+     * @return version code
+     */
     public static int getSwVersionCode() {
         if (-1 == mSwVersionCode) {
-//            String value = getSwVersionName();
-//            if (!TextUtils.isEmpty(value)) {
-//                String[] arr = value.split("-");
-//                if (arr.length > 0) {
-//                    String str = arr[0].replace(".", "");
-//                    mSwVersionCode = Integer.parseInt(str);
-//                }
-//            }
             String value = AppUtils.getProperty("ro.topband.sw.versioncode", "0");
             mSwVersionCode = Integer.parseInt(value);
         }
         return mSwVersionCode;
     }
 
+    /**
+     * Get firmware version name
+     * @return version name
+     */
     public static String getSwVersionName() {
         if (TextUtils.isEmpty(mSwVersionName)) {
             mSwVersionName = AppUtils.getProperty("ro.topband.sw.version", "");
@@ -150,10 +167,18 @@ public class AppUtils {
         return mSwVersionName;
     }
 
+    /**
+     * Get Android version
+     * @return version
+     */
     public static String getAndroidVersion() {
         return AppUtils.getProperty("ro.build.version.release", "");
     }
 
+    /**
+     * Get serial number
+     * @return serial number
+     */
     public static String getProductSN() {
         String sn = AppUtils.getProperty("ro.serialno", "");
         if (TextUtils.isEmpty(sn)) {
@@ -163,20 +188,38 @@ public class AppUtils {
         return sn;
     }
 
+    /**
+     * Get current country
+     * @return country
+     */
     public static String getCountry() {
         return Locale.getDefault().getCountry();
     }
 
+    /**
+     * Get current language
+     * @return language
+     */
     public static String getLanguage() {
         return Locale.getDefault().getLanguage();
     }
 
+    /**
+     * Whether the network is connected
+     * @param context Context
+     * @return true/false
+     */
     public static boolean isConnNetWork(Context context) {
         ConnectivityManager conManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = conManager.getActiveNetworkInfo();
         return ((networkInfo != null) && networkInfo.isConnected());
     }
 
+    /**
+     * Whether WiFi is connected
+     * @param context Context
+     * @return true/false
+     */
     public static boolean isWifiConnected(Context context) {
         ConnectivityManager conManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo wifiNetworkInfo = conManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
@@ -184,8 +227,8 @@ public class AppUtils {
     }
 
     /**
-     * 获取有线mac地址
-     *
+     * Get Ethernet MAC
+     * @param context
      * @return
      */
     public static String getEth0MacAddress(Context context) {
@@ -209,8 +252,7 @@ public class AppUtils {
     }
 
     /**
-     * 获取无线mac地址
-     *
+     * Get WiFi MAC
      * @param context
      * @return
      */
@@ -223,6 +265,11 @@ public class AppUtils {
         return mWifiMac;
     }
 
+    /**
+     * Get MAC, get the Ethernet MAC first, then get the WiFi MAC if it is empty.
+     * @param context
+     * @return
+     */
     public static String getMac(Context context) {
         if (TextUtils.isEmpty(mMac)) {
             mMac = getEth0MacAddress(context);
@@ -233,6 +280,11 @@ public class AppUtils {
         return mMac;
     }
 
+    /**
+     * Get the MAC with the colon removed
+     * @param context
+     * @return
+     */
     public static String getMacNoColon(Context context) {
         if (TextUtils.isEmpty(mMacNoColon)) {
             String mac = getMac(context);
@@ -244,10 +296,9 @@ public class AppUtils {
     }
 
     /**
-     * 获取屏幕宽度
-     *
-     * @param context
-     * @return
+     * Get screen width
+     * @param context Activity
+     * @return screen width
      */
     public static int getScreenWidth(Activity context) {
         if (-1 == mScreenWidth) {
@@ -257,10 +308,9 @@ public class AppUtils {
     }
 
     /**
-     * 获取屏幕高度
-     *
-     * @param context
-     * @return
+     * Get screen height
+     * @param context Activity
+     * @return screen height
      */
     public static int getScreenHeight(Activity context) {
         if (-1 == mScreenHeight) {
@@ -269,53 +319,24 @@ public class AppUtils {
         return mScreenHeight;
     }
 
-    /**
-     * 铃声
-     *
-     * @param context
-     * @return
-     */
-    public static MediaPlayer ring(final Context context, MediaPlayer mp, int ringId, boolean isRepeat) {
-        try {
-            if (null == mp) {
-                mp = MediaPlayer.create(context, ringId);
-            }
-            mp.setLooping(isRepeat);
-            mp.start();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-        }
-        return mp;
-    }
-
-    /**
-     * 手机震动
-     */
-    public static Vibrator vibrate(final Context context, Vibrator vib, boolean isRepeat) {
-        if (null == vib) {
-            vib = (Vibrator) context.getSystemService(Service.VIBRATOR_SERVICE);
-        }
-
-        vib.vibrate(new long[]{1000, 1000, 1000, 1000, 1000}, isRepeat ? 1
-                : -1);
-        return vib;
-    }
-
-    public static boolean isExternalStorageMounted() {
+    private static boolean isExternalStorageMounted() {
         return Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState());
     }
 
+    /**
+     * Get the root storage path
+     * @param context Context
+     * @return path
+     */
     public static String getRootDir(Context context) {
         if (sRootDir.isEmpty()) {
             File sdcardDir = null;
             try {
                 if (isExternalStorageMounted()) {
                     sdcardDir = Environment.getExternalStorageDirectory();
-                    Log.i(TAG, "Environment.MEDIA_MOUNTED :" + sdcardDir.getAbsolutePath() + " R:" + sdcardDir.canRead() + " W:" + sdcardDir.canWrite());
+                    Log.i(TAG, "Environment.MEDIA_MOUNTED :" + sdcardDir.getAbsolutePath()
+                            + " R:" + sdcardDir.canRead() + " W:" + sdcardDir.canWrite());
+
                     if (sdcardDir.canWrite()) {
                         String dir = sdcardDir.getAbsolutePath() + "/com.topband.autoupgrade";
                         File file = new File(dir);
@@ -335,6 +356,12 @@ public class AppUtils {
         return sRootDir;
     }
 
+    /**
+     * Get relative storage path
+     * @param context Context
+     * @param dirName relative path
+     * @return full path
+     */
     public static String getDir(Context context, String dirName) {
         String dir = getRootDir(context) + File.separator + dirName;
         File file = new File(dir);
@@ -345,125 +372,11 @@ public class AppUtils {
         return dir;
     }
 
-    public static boolean hasFrontCamera() {
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
-            int count = Camera.getNumberOfCameras();
-
-            for (int i = 0; i < count; i++) {
-
-                Camera.CameraInfo info = new Camera.CameraInfo();
-                Camera.getCameraInfo(i, info);
-
-                if (info != null) {
-                    if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        return false;
-    }
-
-    public static String getDisplayNameByNumber(Context context, String number) {
-        String displayName = null;
-        Cursor cursor = null;
-
-        try {
-            ContentResolver resolver = context.getContentResolver();
-            Uri uri = ContactsContract.PhoneLookup.CONTENT_FILTER_URI.buildUpon().appendPath(number).build();
-            String[] projection = new String[]{ContactsContract.PhoneLookup._ID, ContactsContract.PhoneLookup.DISPLAY_NAME};
-            cursor = resolver.query(uri, projection, null, null, null);
-
-            if (cursor != null && cursor.moveToFirst()) {
-                int columnIndexName = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME);
-                displayName = cursor.getString(columnIndexName);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-
-        return displayName;
-    }
-
-    public static int getAttrColor(Context context, int attr, int defValue) {
-        TypedValue typedValue = new TypedValue();
-        context.getTheme().resolveAttribute(attr, typedValue, true);
-        TypedArray typedArray = context.obtainStyledAttributes(typedValue.data, new int[]{attr});
-        int color = typedArray.getColor(0, defValue);
-        typedArray.recycle();
-        return color;
-    }
-
-    public static Drawable getAttrDrawable(Context context, int attr) {
-        TypedValue typedValue = new TypedValue();
-        context.getTheme().resolveAttribute(attr, typedValue, true);
-        TypedArray typedArray = context.obtainStyledAttributes(typedValue.data, new int[]{attr});
-        Drawable drawable = typedArray.getDrawable(0);
-        typedArray.recycle();
-        return drawable;
-    }
-
-    private static boolean checkCameraFacing(final int facing) {
-        if (getSdkVersion() < Build.VERSION_CODES.GINGERBREAD) {
-            return false;
-        }
-        final int cameraCount = Camera.getNumberOfCameras();
-        Camera.CameraInfo info = new Camera.CameraInfo();
-        for (int i = 0; i < cameraCount; i++) {
-            Camera.getCameraInfo(i, info);
-            if (facing == info.facing) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
-     * 检查设备是否有摄像头
-     *
-     * @return
-     */
-    public static boolean hasCamera() {
-        return hasBackFacingCamera() || hasFrontFacingCamera();
-    }
-
-    /**
-     * 检查设备是否有后置摄像头
-     *
-     * @return
-     */
-    public static boolean hasBackFacingCamera() {
-        final int CAMERA_FACING_BACK = 0;
-        return checkCameraFacing(CAMERA_FACING_BACK);
-    }
-
-    /**
-     * 检查设备是否有前置摄像头
-     *
-     * @return
-     */
-    public static boolean hasFrontFacingCamera() {
-        final int CAMERA_FACING_BACK = 1;
-        return checkCameraFacing(CAMERA_FACING_BACK);
-    }
-
-    public static int getSdkVersion() {
-        return android.os.Build.VERSION.SDK_INT;
-    }
-
-    /**
-     * 获取系统属性
-     *
-     * @param key
-     * @param defaultValue
-     * @return
+     * Get property
+     * @param key property key
+     * @param defaultValue default value
+     * @return property value
      */
     public static String getProperty(String key, String defaultValue) {
         String value = defaultValue;
@@ -479,10 +392,9 @@ public class AppUtils {
     }
 
     /**
-     * 设置系统属性
-     *
-     * @param key
-     * @param value
+     * Set property
+     * @param key property key
+     * @param value property value
      */
     public static void setProperty(String key, String value) {
         try {
@@ -494,6 +406,10 @@ public class AppUtils {
         }
     }
 
+    /**
+     * Get UUID
+     * @return UUID
+     */
     public static String getUUID() {
         return UUID.randomUUID().toString().replace("-", "");
     }

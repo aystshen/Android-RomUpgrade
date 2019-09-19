@@ -37,7 +37,6 @@ import com.liulishuo.filedownloader.FileDownloader;
 import com.topband.autoupgrade.R;
 import com.topband.autoupgrade.config.UsbConfigManager;
 import com.topband.autoupgrade.helper.AndroidX;
-import com.topband.autoupgrade.helper.Mcu;
 import com.topband.autoupgrade.http.HttpHelper;
 import com.topband.autoupgrade.http.SessionIDManager;
 import com.topband.autoupgrade.http.TopbandApi;
@@ -122,7 +121,10 @@ public class UpdateService extends Service {
                 writeFlag(OTHER_FLAG_FILE, "watchdog=" + (mAndroidX.watchdogIsOpen() ? "true" : "false"));
                 writeFlag(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
 
-                // 安装升级包前一定要关闭watchdog，否则升级过程中watchdog超时复位将导致严重后果
+                /*
+                 * 安装升级包前一定要关闭watchdog，否则升级过程中
+                 * watchdog超时复位将导致严重后果。
+                 */
                 mAndroidX.toggleWatchdog(false);
 
                 RecoverySystem.installPackage(mContext, new File(packagePath));
@@ -222,9 +224,6 @@ public class UpdateService extends Service {
         return Service.START_REDELIVER_INTENT;
     }
 
-    /**
-     * WorkHandler
-     */
     private class WorkHandler extends Handler {
         WorkHandler(Looper looper) {
             super(looper);
