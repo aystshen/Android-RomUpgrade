@@ -62,9 +62,6 @@ import retrofit2.Response;
 public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
 
-    public static final String ID = "com.topband.autoupgrade.UpdateService";
-    public static final String NAME = "AutoUpgrade";
-
     public static final int COMMAND_NULL = 0;
     public static final int COMMAND_CHECK_LOCAL_UPDATING = 1;
     public static final int COMMAND_CHECK_REMOTE_UPDATING = 2;
@@ -222,7 +219,7 @@ public class UpdateService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand...");
-        startForeground();
+
         if (intent == null) {
             return Service.START_NOT_STICKY;
         }
@@ -883,32 +880,4 @@ public class UpdateService extends Service {
 
         return str;
     }
-
-    /**
-     * Android O(8.1) 开始，启动Service不再允许使用context.startService(intent)，
-     * 而改用context.startForegroundService(intent)，并且启动Service后必须调用
-     * startForeground()接口，否则Service将被系统强制结束掉。
-     */
-    private void startForeground() {
-        Notification.Builder builder = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel chan = new NotificationChannel(ID, NAME, NotificationManager.IMPORTANCE_HIGH);
-            chan.enableLights(true);
-            chan.setLightColor(Color.RED);
-            chan.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            if (manager != null) {
-                manager.createNotificationChannel(chan);
-            }
-            builder = new Notification.Builder(this, ID);
-        } else {
-            builder = new Notification.Builder(this.getApplicationContext());
-        }
-        Notification notification = builder.setContentTitle("Rom update service.")
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setWhen(System.currentTimeMillis())
-                .build();
-        startForeground(1, notification);
-    }
-
 }

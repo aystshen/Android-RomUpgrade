@@ -74,19 +74,6 @@ public class AppUtils {
     }
 
     /**
-     * Compatible start service
-     * @param context
-     * @param intent
-     */
-    public static void startService(Context context, Intent intent) {
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
-        }
-    }
-
-    /**
      * Get application version name
      * @param context Context
      * @return version name
