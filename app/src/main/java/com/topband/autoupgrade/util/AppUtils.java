@@ -1,15 +1,14 @@
 package com.topband.autoupgrade.util;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.os.Build;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
@@ -248,7 +247,7 @@ public class AppUtils {
      * @param context
      * @return
      */
-    public static String getEth0MacAddress(Context context) {
+    public static String getEth0Mac(Context context) {
         if (TextUtils.isEmpty(mEth0Mac)) {
             try {
                 int numRead = 0;
@@ -259,7 +258,7 @@ public class AppUtils {
                     String readData = String.valueOf(buf, 0, numRead);
                     strBuf.append(readData);
                 }
-                mEth0Mac = strBuf.toString();
+                mEth0Mac = strBuf.toString().replaceAll("\r|\n", "");
                 reader.close();
             } catch (IOException ex) {
                 Log.w(TAG, "eth0 mac not exist");
@@ -273,9 +272,11 @@ public class AppUtils {
      * @param context
      * @return
      */
-    public static String getWifiMacAddr(Context context) {
+    @SuppressLint("HardwareIds")
+    public static String getWifiMac(Context context) {
         if (TextUtils.isEmpty(mWifiMac)) {
-            WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+            WifiManager wifiManager = (WifiManager) context.getApplicationContext()
+                    .getSystemService(Context.WIFI_SERVICE);
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
             mWifiMac = wifiInfo.getMacAddress();
         }
@@ -289,9 +290,9 @@ public class AppUtils {
      */
     public static String getMac(Context context) {
         if (TextUtils.isEmpty(mMac)) {
-            mMac = getEth0MacAddress(context);
+            mMac = getEth0Mac(context);
             if (TextUtils.isEmpty(mMac)) {
-                mMac = getWifiMacAddr(context);
+                mMac = getWifiMac(context);
             }
         }
         return mMac;
