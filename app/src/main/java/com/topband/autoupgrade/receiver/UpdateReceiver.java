@@ -70,7 +70,7 @@ public class UpdateReceiver extends BroadcastReceiver {
                 serviceIntent.putExtra("command", UpdateService.COMMAND_CHECK_LOCAL_UPDATING);
                 serviceIntent.putExtra("delay", 5000);
                 context.startService(serviceIntent);
-                Log.d(TAG, "onReceive, Udisk is connected. To check local update.");
+                Log.d(TAG, "onReceive, u disk is connected. To check local update.");
             }
 
         } else if (action.equals(ConnectivityManager.CONNECTIVITY_ACTION)) {

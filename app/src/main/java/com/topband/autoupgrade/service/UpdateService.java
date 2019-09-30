@@ -9,10 +9,16 @@ import java.security.GeneralSecurityException;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -45,6 +51,7 @@ import com.topband.autoupgrade.model.ReqBody;
 import com.topband.autoupgrade.model.RspBody;
 import com.topband.autoupgrade.model.UpgradeReqData;
 import com.topband.autoupgrade.model.UpgradeRspData;
+import com.topband.autoupgrade.receiver.UpdateReceiver;
 import com.topband.autoupgrade.util.AppUtils;
 import com.topband.autoupgrade.util.DataEncryptUtil;
 
@@ -54,6 +61,9 @@ import retrofit2.Response;
 
 public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
+
+    public static final String ID = "com.topband.autoupgrade.UpdateService";
+    public static final String NAME = "AutoUpgrade";
 
     public static final int COMMAND_NULL = 0;
     public static final int COMMAND_CHECK_LOCAL_UPDATING = 1;
@@ -97,6 +107,7 @@ public class UpdateService extends Service {
     private String mLastUpdatePath;
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
+    private UpdateReceiver mUpdateReceiver;
 
     private Dialog mDialog = null;
     private ProgressBar mDownloadPgr = null;
@@ -180,12 +191,24 @@ public class UpdateService extends Service {
         workThread.start();
         mWorkHandler = new WorkHandler(workThread.getLooper());
 
+        mUpdateReceiver = new UpdateReceiver();
+        IntentFilter intentFilter = new IntentFilter();
+
+        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        intentFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        intentFilter.addAction("android.hardware.usb.action.USB_STATE");
+        intentFilter.addAction("android.os.storage.action.VOLUME_STATE_CHANGED");
+        this.registerReceiver(mUpdateReceiver, intentFilter);
+
         checkUpdateFlag();
     }
 
     @Override
     public void onDestroy() {
         Log.d(TAG, "onDestroy...");
+
+        this.unregisterReceiver(mUpdateReceiver);
+
         super.onDestroy();
     }
 
@@ -199,7 +222,7 @@ public class UpdateService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand...");
-
+        startForeground();
         if (intent == null) {
             return Service.START_NOT_STICKY;
         }
@@ -861,13 +884,31 @@ public class UpdateService extends Service {
         return str;
     }
 
-    private void makeToast(final CharSequence msg) {
-        mMainHandler.post(new Runnable() {
-            public void run() {
-                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+    /**
+     * Android O(8.1) 开始，启动Service不再允许使用context.startService(intent)，
+     * 而改用context.startForegroundService(intent)，并且启动Service后必须调用
+     * startForeground()接口，否则Service将被系统强制结束掉。
+     */
+    private void startForeground() {
+        Notification.Builder builder = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel chan = new NotificationChannel(ID, NAME, NotificationManager.IMPORTANCE_HIGH);
+            chan.enableLights(true);
+            chan.setLightColor(Color.RED);
+            chan.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.createNotificationChannel(chan);
             }
-        });
+            builder = new Notification.Builder(this, ID);
+        } else {
+            builder = new Notification.Builder(this.getApplicationContext());
+        }
+        Notification notification = builder.setContentTitle("Rom update service.")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setWhen(System.currentTimeMillis())
+                .build();
+        startForeground(1, notification);
     }
-
 
 }

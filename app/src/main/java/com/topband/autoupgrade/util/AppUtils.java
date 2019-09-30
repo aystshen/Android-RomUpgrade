@@ -2,12 +2,14 @@ package com.topband.autoupgrade.util;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
@@ -25,6 +27,8 @@ import java.util.UUID;
  */
 public class AppUtils {
     private final static String TAG = "AppUtils";
+
+    private static final String KEY_IS_FIRST = "is_first_run";
 
     // Application version
     private static String mVersionName = "";
@@ -55,6 +59,32 @@ public class AppUtils {
 
     // Storage
     private static String sRootDir = "";
+
+    /**
+     * Is first run
+     * @param context
+     * @return
+     */
+    public static boolean isFirstRun(Context context) {
+        boolean isFirst = SPUtils.getInstance(context).getData(KEY_IS_FIRST, true);
+        if (isFirst) {
+            SPUtils.getInstance(context).saveData(KEY_IS_FIRST, false);
+        }
+        return isFirst;
+    }
+
+    /**
+     * Compatible start service
+     * @param context
+     * @param intent
+     */
+    public static void startService(Context context, Intent intent) {
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            context.startService(intent);
+        }
+    }
 
     /**
      * Get application version name
