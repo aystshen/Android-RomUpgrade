@@ -44,6 +44,7 @@ public class AppUtils {
     // Product
     private static String mProduceName = "";
     private static String mProduceId = "";
+    private static String mPlatform = "";
 
     // MAC
     private static String mEth0Mac = "";
@@ -117,6 +118,17 @@ public class AppUtils {
             mProduceName = AppUtils.getProperty("ro.product.model", "");
         }
         return mProduceName;
+    }
+
+    /**
+     * Get chip platform
+     * @return platform
+     */
+    public static String getPlatform() {
+        if (TextUtils.isEmpty(mPlatform)) {
+            mPlatform = AppUtils.getProperty("ro.product.board", "");
+        }
+        return mPlatform;
     }
 
     /**
