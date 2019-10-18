@@ -422,9 +422,9 @@ public class UpdateService extends Service {
         if (!TextUtils.isEmpty(path)) {
             sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle("系统升级");
-            builder.setMessage("发现新的系统版本，是否升级？\n" + path);
-            builder.setPositiveButton("立即升级", new DialogInterface.OnClickListener() {
+            builder.setTitle(R.string.upgrade_title);
+            builder.setMessage(getString(R.string.upgrade_message) + path);
+            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     // Notification verification upgrade package
@@ -438,7 +438,7 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
                     sWorkHandleLocked = false;
@@ -463,8 +463,8 @@ public class UpdateService extends Service {
         if (!TextUtils.isEmpty(path)) {
             sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle("系统升级");
-            builder.setMessage("发现新的系统版本，5秒后将自动升级！\n" + path);
+            builder.setTitle(R.string.upgrade_title);
+            builder.setMessage(getString(R.string.upgrade_message_force) + path);
             final Dialog dialog = builder.create();
             dialog.setCancelable(false);
             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
@@ -497,11 +497,11 @@ public class UpdateService extends Service {
         if (null != newVersion) {
             sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle("系统升级");
-            builder.setMessage("发现新的系统版本，是否升级？\n"
-                    + "版本：" + newVersion.getVersion()
+            builder.setTitle(R.string.upgrade_title);
+            builder.setMessage(getString(R.string.upgrade_message)
+                    + getString(R.string.upgrade_version) + newVersion.getVersion()
                     + "\n" + newVersion.getInfo());
-            builder.setPositiveButton("立即升级", new DialogInterface.OnClickListener() {
+            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     showDownloading();
@@ -511,7 +511,7 @@ public class UpdateService extends Service {
                     App.getOtaAgent().downLoad(newVersion.getPackageX(), new DownloadListener());
                 }
             });
-            builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
                     sWorkHandleLocked = false;
@@ -536,16 +536,16 @@ public class UpdateService extends Service {
         mDownloadPgr = (ProgressBar) view.findViewById(R.id.pgr_download);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle("系统升级");
-        builder.setMessage("正在下载新版本，请稍候...");
+        builder.setTitle(R.string.upgrade_title);
+        builder.setMessage(R.string.upgrade_downloading_message);
         builder.setView(view);
-        builder.setPositiveButton("隐藏", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton(R.string.hide, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
             }
         });
-        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
                 sWorkHandleLocked = false;
@@ -569,9 +569,9 @@ public class UpdateService extends Service {
      */
     private void showDownloaded(final String pkgName) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle("系统升级");
-        builder.setMessage("新版本已经下载完成，是否升级？");
-        builder.setPositiveButton("立即升级", new DialogInterface.OnClickListener() {
+        builder.setTitle(R.string.upgrade_title);
+        builder.setMessage(R.string.upgrade_downloaded_message);
+        builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 // install package
@@ -579,7 +579,7 @@ public class UpdateService extends Service {
                 dialog.dismiss();
             }
         });
-        builder.setNegativeButton("暂不升级", new DialogInterface.OnClickListener() {
+        builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
                 sWorkHandleLocked = false;
@@ -602,9 +602,9 @@ public class UpdateService extends Service {
     private void showInvalidPackage(final String path) {
         if (!TextUtils.isEmpty(path)) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle("系统升级");
-            builder.setMessage("无效的升级文件！\n" + path);
-            builder.setPositiveButton("重试", new DialogInterface.OnClickListener() {
+            builder.setTitle(R.string.upgrade_title);
+            builder.setMessage(getString(R.string.upgrade_invalid_package_message) + path);
+            builder.setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     // Notification verification upgrade package
@@ -618,7 +618,7 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
                     sWorkHandleLocked = false;
@@ -640,9 +640,9 @@ public class UpdateService extends Service {
     private void showUpdateSuccess() {
         sWorkHandleLocked = true;
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle("系统升级");
-        builder.setMessage("新版本升级成功！");
-        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+        builder.setTitle(R.string.upgrade_title);
+        builder.setMessage(R.string.upgrade_success_message);
+        builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
@@ -662,9 +662,9 @@ public class UpdateService extends Service {
     private void showUpdateFailed() {
         sWorkHandleLocked = true;
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle("系统升级");
-        builder.setMessage("新版本升级失败！");
-        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+        builder.setTitle(R.string.upgrade_title);
+        builder.setMessage(R.string.upgrade_failed_message);
+        builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 sWorkHandleLocked = false;
