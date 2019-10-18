@@ -88,7 +88,7 @@ public class UpdateService extends Service {
      * Recovery upgrade status storage file
      */
     private static final String RECOVERY_DIR = "/cache/recovery";
-    private static final File UPDATE_FLAG_FILE = new File(RECOVERY_DIR + "/last_upgrade_flag");
+    private static final File UPDATE_FLAG_FILE = new File(RECOVERY_DIR + "/last_flag");
     private static final File OTHER_FLAG_FILE = new File(RECOVERY_DIR + "/last_other_flag");
 
     /**
@@ -693,12 +693,12 @@ public class UpdateService extends Service {
             try {
                 flag = FileUtils.readFile(UPDATE_FLAG_FILE);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.w(TAG, "checkUpdateFlag, " + e.getMessage());
             }
             Log.i(TAG, "checkUpdateFlag, upgrade flag = " + flag);
 
             if (!TextUtils.isEmpty(flag)) {
-                String[] array = flag.split("$");
+                String[] array = flag.split("\\$");
                 if (array.length == 2) {
                     if (array[1].startsWith("path")) {
                         mLastUpdatePath = array[1].substring(array[1].indexOf('=') + 1);
@@ -711,6 +711,7 @@ public class UpdateService extends Service {
                         showUpdateFailed();
                     }
                 }
+                UPDATE_FLAG_FILE.delete();
             }
 
             // Check the other(watchdog) flag
@@ -718,12 +719,12 @@ public class UpdateService extends Service {
             try {
                 flag = FileUtils.readFile(OTHER_FLAG_FILE);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.w(TAG, "checkUpdateFlag, " + e.getMessage());
             }
             Log.i(TAG, "checkUpdateFlag, other flag = " + flag);
 
             if (!TextUtils.isEmpty(flag)) {
-                String[] array = flag.split("$");
+                String[] array = flag.split("\\$");
                 for (String param : array) {
                     if (param.startsWith("watchdog")) {
                         String value = param.substring(param.indexOf('=') + 1);
@@ -734,6 +735,7 @@ public class UpdateService extends Service {
                         }
                     }
                 }
+                OTHER_FLAG_FILE.delete();
             }
         }
     }
