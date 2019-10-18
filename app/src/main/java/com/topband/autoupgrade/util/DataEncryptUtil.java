@@ -4,14 +4,11 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
-
 import org.json.JSONObject;
 
 /**
- * Created by Administrator on 2017/12/12.
+ * Created by ayst.shen@foxmail.com on 2017/12/12.
  */
-
 public class DataEncryptUtil {
     private static final String TAG = "DataEncryptUtil";
     private static Gson gson = new Gson();

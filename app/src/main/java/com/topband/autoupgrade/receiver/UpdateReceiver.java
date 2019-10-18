@@ -36,6 +36,19 @@ import com.topband.autoupgrade.util.AppUtils;
 import java.lang.reflect.Type;
 import java.util.List;
 
+/**
+ * Listen to the broadcast, start the UpdateService
+ * to perform the upgrade action.
+ * <p>
+ * Intent.ACTION_BOOT_COMPLETED
+ * ConnectivityManager.CONNECTIVITY_ACTION
+ * Intent.ACTION_MEDIA_MOUNTED
+ * android.hardware.usb.action.USB_STATE
+ * android.os.storage.action.VOLUME_STATE_CHANGED
+ * Constants.BROADCAST_NEWVERSION
+ * <p>
+ * Created by ayst.shen@foxmail.com on 2018/11/6.
+ */
 public class UpdateReceiver extends BroadcastReceiver {
     private final static String TAG = "UpdateReceiver";
     private static int mVolumeState = -1;
@@ -50,13 +63,19 @@ public class UpdateReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         Log.i(TAG, "onReceive, action = " + action);
 
-        if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
-            Log.i(TAG, "onReceive, Boot completed. To check remote update.");
+        if (TextUtils.equals(Intent.ACTION_BOOT_COMPLETED, action)) {
+            // Check local and remote upgrades after booting.
+            Log.i(TAG, "onReceive, Boot completed. To check local and remote update.");
+            context.startService(buildIntent(context,
+                    UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
+                    5000));
+
             context.startService(buildIntent(context,
                     UpdateService.COMMAND_CHECK_REMOTE_UPDATING,
                     25000));
 
-        } else if (action.equals(ConnectivityManager.CONNECTIVITY_ACTION)) {
+        } else if (TextUtils.equals(ConnectivityManager.CONNECTIVITY_ACTION, action)) {
+            // Check remote upgrade after connecting to the network.
             if (AppUtils.isConnNetWork(context)) {
                 Log.i(TAG, "onReceive, Network is connected. To check remote update.");
                 context.startService(buildIntent(context,
@@ -64,7 +83,8 @@ public class UpdateReceiver extends BroadcastReceiver {
                         5000));
             }
 
-        } else if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {
+        } else if (TextUtils.equals(Intent.ACTION_MEDIA_MOUNTED, action)) {
+            // U disk insert check local upgrade.
             String[] path = {intent.getData().getPath()};
             Log.i(TAG, "onReceive, Media is mounted to '"
                     + path[0] + "'. To check local update.");
@@ -72,7 +92,8 @@ public class UpdateReceiver extends BroadcastReceiver {
                     UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
                     5000));
 
-        } else if ("android.hardware.usb.action.USB_STATE".equals(action)) {
+        } else if (TextUtils.equals("android.hardware.usb.action.USB_STATE", action)) {
+            // U disk insert check local upgrade.
             Bundle extras = intent.getExtras();
             boolean connected = extras.getBoolean("connected");
             boolean configured = extras.getBoolean("configured");
@@ -87,7 +108,8 @@ public class UpdateReceiver extends BroadcastReceiver {
                         5000));
             }
 
-        } else if (action.equals("android.os.storage.action.VOLUME_STATE_CHANGED")) {
+        } else if (TextUtils.equals("android.os.storage.action.VOLUME_STATE_CHANGED", action)) {
+            // U disk insert check local upgrade.
             int state = intent.getIntExtra("android.os.storage.extra.VOLUME_STATE", 0);
             if (mVolumeState == 0 && state == 2) {
                 Log.i(TAG, "onReceive, Volume is mounted. To check local update.");
@@ -97,9 +119,10 @@ public class UpdateReceiver extends BroadcastReceiver {
             }
             mVolumeState = state;
 
-        } else if (action.equals(Constants.BROADCAST_NEWVERSION)) {
+        } else if (TextUtils.equals(Constants.BROADCAST_NEWVERSION, action)) {
+            // Baidu otasdk automatically checks for upgrade notifications.
             String pid = intent.getStringExtra(Constants.BROADCAST_KEY_PID);
-            if (TextUtils.equals(App.PRODUCT_ID, pid)) {
+            if (TextUtils.equals(App.getProductId(), pid)) {
                 String infos = intent.getStringExtra(Constants.BROADCAST_KEY_INFOS);
 
                 Log.i(TAG, "onReceive, new version infos=" + infos);

@@ -28,14 +28,15 @@ import android.provider.MediaStore;
 
 import java.io.*;
 
+/**
+ * Created by ayst.shen@foxmail.com on 17/8/15.
+ */
 public class FileUtils {
 
     /**
      * Write file
-     *
-     * @param file
-     * @param message
-     * @return
+     * @param file Write file
+     * @param message Written content
      * @throws IOException
      */
     public static void writeFile(File file, String message)
@@ -51,9 +52,8 @@ public class FileUtils {
 
     /**
      * Read file
-     *
-     * @param file
-     * @return
+     * @param file Read file
+     * @return Read content
      * @throws IOException
      */
     public static String readFile(File file)
@@ -73,6 +73,12 @@ public class FileUtils {
         }
     }
 
+    /**
+     * Get the file path from uri
+     * @param context Context
+     * @param uri Uri
+     * @return File path
+     */
     public static String getFilePathByUri(Context context, Uri uri) {
         String path = null;
         // Starting with file://
@@ -82,8 +88,11 @@ public class FileUtils {
         }
 
         // Starting with content://, example: content://media/extenral/images/media/17766
-        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme()) && Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-            Cursor cursor = context.getContentResolver().query(uri, new String[]{MediaStore.Images.Media.DATA}, null, null, null);
+        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+            Cursor cursor = context.getContentResolver().query(uri,
+                    new String[]{MediaStore.Images.Media.DATA},
+                    null, null, null);
             if (cursor != null) {
                 if (cursor.moveToFirst()) {
                     int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
@@ -96,8 +105,10 @@ public class FileUtils {
             return path;
         }
 
-        // Starting with content://, example: content://media/extenral/images/media/17766, >= Build.VERSION_CODES.KITKAT
-        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme()) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+        // Starting with content://, example: content://media/extenral/images/media/17766,
+        // >= Build.VERSION_CODES.KITKAT
+        if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             if (DocumentsContract.isDocumentUri(context, uri)) {
                 if (isExternalStorageDocument(uri)) {
                     // ExternalStorageProvider
@@ -111,7 +122,8 @@ public class FileUtils {
                 } else if (isDownloadsDocument(uri)) {
                     // DownloadsProvider
                     final String id = DocumentsContract.getDocumentId(uri);
-                    final Uri contentUri = ContentUris.withAppendedId(Uri.parse("content://downloads/public_downloads"),
+                    final Uri contentUri = ContentUris.withAppendedId(
+                            Uri.parse("content://downloads/public_downloads"),
                             Long.valueOf(id));
                     path = getDataColumn(context, contentUri, null, null);
                     return path;
@@ -138,12 +150,14 @@ public class FileUtils {
         return null;
     }
 
-    private static String getDataColumn(Context context, Uri uri, String selection, String[] selectionArgs) {
+    private static String getDataColumn(Context context, Uri uri, String selection,
+                                        String[] selectionArgs) {
         Cursor cursor = null;
         final String column = "_data";
         final String[] projection = {column};
         try {
-            cursor = context.getContentResolver().query(uri, projection, selection, selectionArgs, null);
+            cursor = context.getContentResolver().query(uri, projection, selection,
+                    selectionArgs, null);
             if (cursor != null && cursor.moveToFirst()) {
                 final int column_index = cursor.getColumnIndexOrThrow(column);
                 return cursor.getString(column_index);

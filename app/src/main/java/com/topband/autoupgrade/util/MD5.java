@@ -9,10 +9,13 @@ import java.security.NoSuchAlgorithmException;
 
 import android.util.Log;
 
+/**
+ * Created by ayst.shen@foxmail.com on 17/8/15.
+ */
 public class MD5 {
 
-	private static final char HEX_DIGITS[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        'A', 'B', 'C', 'D', 'E', 'F' };
+	private static final char[] HEX_DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+			'A', 'B', 'C', 'D', 'E', 'F'};
 	
 	public static String toHexString(byte[] b) {  
 		 StringBuilder sb = new StringBuilder(b.length * 2);  

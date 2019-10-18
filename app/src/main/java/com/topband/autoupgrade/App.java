@@ -8,14 +8,18 @@ import com.topband.autoupgrade.baidu.SystemInfo;
 import com.topband.autoupgrade.util.AppUtils;
 
 /**
- * Created by Administrator on 2017/12/13.
+ * Created by ayst.shen@foxmail.com on 2017/12/13.
  */
-
 public class App extends OtaApplication {
-    public static final String PRODUCT_ID = "9552";
-    private static final String PRODUCT_SECRET = "MTgxZGMxMzE2NjJiNGViYw==";
+    /**
+     * Baidu otask product id and secret
+     */
+    private static final String DEFAULT_PRODUCT_ID = "9552";
+    private static final String DEFAULT_PRODUCT_SECRET = "MTgxZGMxMzE2NjJiNGViYw==";
 
     private static IOtaAgent sOtaAgent;
+    private static String sProductId = DEFAULT_PRODUCT_ID;
+    private static String sProductSecret = DEFAULT_PRODUCT_SECRET;
 
     @Override
     public void onCreate() {
@@ -24,6 +28,10 @@ public class App extends OtaApplication {
         FileDownloader.setup(this);
     }
 
+    /**
+     * Initialize Baidu otasdk
+     * @param otaSdkHelper
+     */
     @Override
     protected void initService(IOtaSdkHelper otaSdkHelper) {
         otaSdkHelper.init(AppUtils.getWifiMac(this), new SystemInfo());
@@ -31,10 +39,18 @@ public class App extends OtaApplication {
         otaSdkHelper.setAutoCheck(true);
         otaSdkHelper.setSilentUpgradeTime("23:00", "02:00");
 
-        sOtaAgent = otaSdkHelper.getInst(PRODUCT_ID, PRODUCT_SECRET);
+        // Read the id and secret of different products from the property.
+        sProductId = AppUtils.getProperty("ro.topband.product.id", sProductId);
+        sProductSecret = AppUtils.getProperty("ro.topband.product.secret", sProductSecret);
+
+        sOtaAgent = otaSdkHelper.getInst(sProductId, sProductSecret);
     }
 
     public static IOtaAgent getOtaAgent() {
         return sOtaAgent;
+    }
+
+    public static String getProductId() {
+        return sProductId;
     }
 }

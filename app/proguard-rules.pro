@@ -48,6 +48,7 @@
 
 # Gson
 -keep class com.topband.autoupgrade.http.**{*;}
+-keep class com.topband.autoupgrade.baidu.**{*;}
 
 -keepattributes *Annotation*
 
@@ -61,5 +62,17 @@
 # Only required if you use AsyncExecutor
 -keepclassmembers class * extends org.greenrobot.eventbus.util.ThrowableFailureEvent {
     <init>(java.lang.Throwable);
+}
+
+# For Baidu otasdk
+-dontwarn com.baidu.commonlib.interfaces.**
+-keep class com.baidu.commonlib.interfaces.** { *; }
+
+-dontwarn com.baidu.eventbus.lib.**
+-keep class com.baidu.eventbus.lib.** { *; }
+
+-keepattributes *Annotation*
+-keepclassmembers class ** {
+    @com.baidu.eventbus.lib.Event <methods>;
 }
 

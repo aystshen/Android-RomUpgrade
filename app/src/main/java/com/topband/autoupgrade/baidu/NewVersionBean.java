@@ -9,7 +9,7 @@ public class NewVersionBean implements Serializable {
     /**
      * package : com.android.system
      * version : 1.0.51.0
-     * info : 测试升级提示
+     * info : infos
      * taskid : 60900
      * detail : {}
      * filesize : 514044607

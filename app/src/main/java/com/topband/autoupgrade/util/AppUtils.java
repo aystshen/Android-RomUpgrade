@@ -51,7 +51,6 @@ public class AppUtils {
     private static String mWifiMac = "";
     private static String mMac = "";
     private static String mMacNoColon = "";
-    public static String mImei = "";
 
     // Screen
     private static int mScreenWidth = -1;
@@ -81,7 +80,8 @@ public class AppUtils {
     public static String getVersionName(Context context) {
         if (TextUtils.isEmpty(mVersionName)) {
             try {
-                PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+                PackageInfo info = context.getPackageManager().getPackageInfo(
+                        context.getPackageName(), 0);
                 mVersionName = info.versionName;
                 mVersionCode = info.versionCode;
             } catch (PackageManager.NameNotFoundException e) {
@@ -99,7 +99,8 @@ public class AppUtils {
     public static int getVersionCode(Context context) {
         if (-1 == mVersionCode) {
             try {
-                PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+                PackageInfo info = context.getPackageManager().getPackageInfo(
+                        context.getPackageName(), 0);
                 mVersionName = info.versionName;
                 mVersionCode = info.versionCode;
             } catch (PackageManager.NameNotFoundException e) {
@@ -207,6 +208,7 @@ public class AppUtils {
      * Get serial number
      * @return serial number
      */
+    @SuppressLint("HardwareIds")
     public static String getProductSN() {
         String sn = AppUtils.getProperty("ro.serialno", "");
         if (TextUtils.isEmpty(sn)) {
@@ -238,7 +240,8 @@ public class AppUtils {
      * @return true/false
      */
     public static boolean isConnNetWork(Context context) {
-        ConnectivityManager conManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        ConnectivityManager conManager = (ConnectivityManager) context.
+                getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = conManager.getActiveNetworkInfo();
         return ((networkInfo != null) && networkInfo.isConnected());
     }
@@ -249,7 +252,8 @@ public class AppUtils {
      * @return true/false
      */
     public static boolean isWifiConnected(Context context) {
-        ConnectivityManager conManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        ConnectivityManager conManager = (ConnectivityManager) context.
+                getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo wifiNetworkInfo = conManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
         return ((wifiNetworkInfo != null) && wifiNetworkInfo.isConnected());
     }
@@ -265,7 +269,8 @@ public class AppUtils {
                 int numRead = 0;
                 char[] buf = new char[1024];
                 StringBuffer strBuf = new StringBuffer(1000);
-                BufferedReader reader = new BufferedReader(new FileReader("/sys/class/net/eth0/address"));
+                BufferedReader reader = new BufferedReader(new FileReader(
+                        "/sys/class/net/eth0/address"));
                 while ((numRead = reader.read(buf)) != -1) {
                     String readData = String.valueOf(buf, 0, numRead);
                     strBuf.append(readData);
@@ -368,7 +373,7 @@ public class AppUtils {
                             + " R:" + sdcardDir.canRead() + " W:" + sdcardDir.canWrite());
 
                     if (sdcardDir.canWrite()) {
-                        String dir = sdcardDir.getAbsolutePath() + "/com.topband.autoupgrade";
+                        String dir = sdcardDir.getAbsolutePath() + context.getPackageName();
                         File file = new File(dir);
                         if (!file.exists()) {
                             Log.i(TAG, "getRootDir, dir not exist and make dir");
@@ -408,6 +413,7 @@ public class AppUtils {
      * @param defaultValue default value
      * @return property value
      */
+    @SuppressLint("PrivateApi")
     public static String getProperty(String key, String defaultValue) {
         String value = defaultValue;
         try {
@@ -426,6 +432,7 @@ public class AppUtils {
      * @param key property key
      * @param value property value
      */
+    @SuppressLint("PrivateApi")
     public static void setProperty(String key, String value) {
         try {
             Class<?> c = Class.forName("android.os.SystemProperties");

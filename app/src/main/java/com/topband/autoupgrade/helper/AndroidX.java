@@ -4,6 +4,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+/**
+ * The AndroidX service is docked mainly to
+ * disable the Watchdog function during the
+ * upgrade process.
+ */
 public class AndroidX {
     private static final String TAG = "AndroidX";
 
@@ -27,6 +32,10 @@ public class AndroidX {
         mMcu = new Mcu(context);
     }
 
+    /**
+     * Toggle 4G keep-alive service
+     * @param on on/off
+     */
     public void toggle4GKeepLive(boolean on) {
         Intent intent = new Intent();
         intent.setAction(ACTION_4G_KEEP_LIVE);
@@ -35,6 +44,10 @@ public class AndroidX {
         mContext.sendBroadcast(intent, RECEIVER_PERMISSION);
     }
 
+    /**
+     * Toggle watchdog service
+     * @param on on/off
+     */
     public void toggleWatchdog(boolean on) {
         Intent intent = new Intent();
         intent.setAction(ACTION_WATCHDOG);
@@ -43,6 +56,10 @@ public class AndroidX {
         mContext.sendBroadcast(intent, RECEIVER_PERMISSION);
     }
 
+    /**
+     * Set watchdog timeout
+     * @param timeout watchdog timeout
+     */
     public void setWatchdogTimeout(int timeout) {
         Intent intent = new Intent();
         intent.setAction(ACTION_WATCHDOG);
@@ -54,6 +71,10 @@ public class AndroidX {
         mContext.sendBroadcast(intent, RECEIVER_PERMISSION);
     }
 
+    /**
+     * The watchdog is open
+     * @return on/off
+     */
     public boolean watchdogIsOpen() {
         return mMcu.watchdogIsOpen();
     }

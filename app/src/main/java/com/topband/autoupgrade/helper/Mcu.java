@@ -9,13 +9,13 @@ import android.os.RemoteException;
 import java.lang.reflect.Method;
 
 /**
- * Created by Administrator on 2018/11/6.
+ * Watchdog API
+ * Created by ayst.shen@foxmail.com on 2018/11/6.
  */
-
 public class Mcu {
     private IMcuService mMcuService;
 
-    @SuppressLint("WrongConstant")
+    @SuppressLint({"WrongConstant", "PrivateApi"})
     public Mcu(Context context) {
         Method method = null;
         try {

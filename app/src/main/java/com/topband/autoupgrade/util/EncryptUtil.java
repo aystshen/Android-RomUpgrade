@@ -1,6 +1,9 @@
 package com.topband.autoupgrade.util;
 
+import android.annotation.SuppressLint;
+
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -8,9 +11,8 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Created by heavy on 17/8/15.
+ * Created by ayst.shen@foxmail.com on 17/8/15.
  */
-
 public class EncryptUtil {
     private static final String AES_TRANSFORMATION = "AES/ECB/PKCS5Padding";
     private static final String ASE_ALGORITHM = "AES";
@@ -23,18 +25,19 @@ public class EncryptUtil {
     }
 
     public static String encryptAES(String seed, String cleartext) throws Exception {
-        byte[] rawKey = seed.getBytes("UTF-8");
-        byte[] result = cleartext.getBytes("UTF-8");
+        byte[] rawKey = seed.getBytes(StandardCharsets.UTF_8);
+        byte[] result = cleartext.getBytes(StandardCharsets.UTF_8);
         return toHex(encodeAES(rawKey, result));
     }
 
     public static String decryptAES(String seed, String encrypted) throws Exception {
-        byte[] rawKey = seed.getBytes("UTF-8");
+        byte[] rawKey = seed.getBytes(StandardCharsets.UTF_8);
         byte[] enc = toByte(encrypted);
         byte[] result = decodeAES(rawKey, enc);
         return new String(result);
     }
 
+    @SuppressLint("GetInstance")
     public static byte[] encodeAES(byte[] keyBytes, byte[] data) throws Exception {
         Cipher encodeCipher = Cipher.getInstance(AES_TRANSFORMATION);
         SecretKeySpec key = new SecretKeySpec(keyBytes, ASE_ALGORITHM);
@@ -42,6 +45,7 @@ public class EncryptUtil {
         return encodeCipher.doFinal(data);
     }
 
+    @SuppressLint("GetInstance")
     public static byte[] decodeAES(byte[] keyBytes, byte[] data) throws Exception {
         Cipher encodeCipher = Cipher.getInstance(AES_TRANSFORMATION);
         SecretKeySpec key = new SecretKeySpec(keyBytes, ASE_ALGORITHM);
