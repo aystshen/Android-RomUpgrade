@@ -16,5 +16,6 @@
     <string name="upgrade_invalid_package_message">"无效的升级文件！\n"</string>
     <string name="upgrade_success_message">升级成功！</string>
     <string name="upgrade_failed_message">升级失败！</string>
+    <string name="upgrade_download_failed_message">下载失败！</string>
 
 </resources>

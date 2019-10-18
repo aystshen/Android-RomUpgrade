@@ -16,5 +16,6 @@
     <string name="upgrade_invalid_package_message">"Verification failed!\n"</string>
     <string name="upgrade_success_message">Upgrade success!</string>
     <string name="upgrade_failed_message">Upgrade failed!</string>
+    <string name="upgrade_download_failed_message">Download failed!</string>
 
 </resources>

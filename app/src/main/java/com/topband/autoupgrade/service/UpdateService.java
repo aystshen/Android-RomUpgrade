@@ -29,6 +29,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeInterface;
@@ -784,7 +785,13 @@ public class UpdateService extends Service {
 
         @Override
         public void onFailed(String pkgName, int errCode, String reason) {
-
+            Log.e(TAG, "DownloadListener, onFailed errCode=" + errCode
+                    + " reason=" + reason);
+            if (null != mDialog && mDialog.isShowing()) {
+                mDialog.dismiss();
+            }
+            Toast.makeText(getApplicationContext(), R.string.upgrade_download_failed_message,
+                    Toast.LENGTH_SHORT).show();
         }
 
         @Override
