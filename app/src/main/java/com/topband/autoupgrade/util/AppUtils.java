@@ -373,7 +373,7 @@ public class AppUtils {
                             + " R:" + sdcardDir.canRead() + " W:" + sdcardDir.canWrite());
 
                     if (sdcardDir.canWrite()) {
-                        String dir = sdcardDir.getAbsolutePath() + "/" + context.getPackageName();
+                        String dir = sdcardDir.getAbsolutePath() + File.separator + context.getPackageName();
                         File file = new File(dir);
                         if (!file.exists()) {
                             Log.i(TAG, "getRootDir, dir not exist and make dir");
@@ -422,9 +422,9 @@ public class AppUtils {
             value = (String) (get.invoke(c, key, defaultValue));
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            return value;
         }
+
+        return value;
     }
 
     /**
