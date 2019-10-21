@@ -705,9 +705,11 @@ public class UpdateService extends Service {
                         mLastUpdatePath = array[1].substring(array[1].indexOf('=') + 1);
                     }
 
-                    isNeedDeletePackage = true;
                     if (TextUtils.equals(COMMAND_FLAG_SUCCESS, array[0])) {
                         showUpdateSuccess();
+                        if (mLastUpdatePath.startsWith(AppUtils.getRootDir(this))) {
+                            isNeedDeletePackage = true;
+                        }
                     } else if (TextUtils.equals(COMMAND_FLAG_UPDATING, array[0])) {
                         showUpdateFailed();
                     }
