@@ -40,8 +40,8 @@ public class App extends OtaApplication {
         otaSdkHelper.setSilentUpgradeTime("23:00", "02:00");
 
         // Read the id and secret of different products from the property.
-        sProductId = AppUtils.getProperty("ro.topband.product.id", sProductId);
-        sProductSecret = AppUtils.getProperty("ro.topband.product.secret", sProductSecret);
+        sProductId = AppUtils.getProperty("ro.baidu.product.id", sProductId);
+        sProductSecret = AppUtils.getProperty("ro.baidu.product.secret", sProductSecret);
 
         sOtaAgent = otaSdkHelper.getInst(sProductId, sProductSecret);
     }
