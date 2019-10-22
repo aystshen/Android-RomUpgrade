@@ -1,5 +1,7 @@
 package com.topband.autoupgrade;
 
+import android.util.Log;
+
 import com.baidu.commonlib.interfaces.IOtaAgent;
 import com.baidu.commonlib.interfaces.IOtaSdkHelper;
 import com.baidu.otasdk.ota.OtaApplication;
@@ -11,6 +13,8 @@ import com.topband.autoupgrade.util.AppUtils;
  * Created by ayst.shen@foxmail.com on 2017/12/13.
  */
 public class App extends OtaApplication {
+    private static final String TAG = "App";
+
     /**
      * Baidu otask product id and secret
      */
@@ -34,7 +38,7 @@ public class App extends OtaApplication {
      */
     @Override
     protected void initService(IOtaSdkHelper otaSdkHelper) {
-        otaSdkHelper.init(AppUtils.getWifiMac(this), new SystemInfo());
+        otaSdkHelper.init(AppUtils.getDeviceId(), new SystemInfo());
         otaSdkHelper.setUpgradePath(AppUtils.getDir(this, "upgrade"));
         otaSdkHelper.setAutoCheck(true);
         otaSdkHelper.setSilentUpgradeTime("00:00", "24:00");
@@ -44,6 +48,9 @@ public class App extends OtaApplication {
         sProductSecret = AppUtils.getProperty("ro.baidu.product.secret", sProductSecret);
 
         sOtaAgent = otaSdkHelper.getInst(sProductId, sProductSecret);
+
+        Log.i(TAG, "initService, product id: " + sProductId
+                + " device id: " + AppUtils.getDeviceId());
     }
 
     public static IOtaAgent getOtaAgent() {

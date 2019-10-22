@@ -68,7 +68,7 @@ public class UpdateReceiver extends BroadcastReceiver {
             Log.i(TAG, "onReceive, Boot completed. To check local and remote update.");
             context.startService(buildIntent(context,
                     UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
-                    5000));
+                    10000));
 
             context.startService(buildIntent(context,
                     UpdateService.COMMAND_CHECK_REMOTE_UPDATING,

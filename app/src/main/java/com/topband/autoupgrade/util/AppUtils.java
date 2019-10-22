@@ -209,13 +209,24 @@ public class AppUtils {
      * @return serial number
      */
     @SuppressLint("HardwareIds")
-    public static String getProductSN() {
-        String sn = AppUtils.getProperty("ro.serialno", "");
+    public static String getSerialNo() {
+        String sn = android.os.Build.SERIAL;
         if (TextUtils.isEmpty(sn)) {
-            sn = "unknown";
+            sn = AppUtils.getProperty("ro.serialno", "");
+            if (TextUtils.isEmpty(sn)) {
+                sn = "unknown";
+            }
         }
 
         return sn;
+    }
+
+    /**
+     * Get device id
+     * @return device id
+     */
+    public static String getDeviceId() {
+        return getSerialNo();
     }
 
     /**
