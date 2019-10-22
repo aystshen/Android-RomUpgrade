@@ -37,7 +37,7 @@ public class App extends OtaApplication {
         otaSdkHelper.init(AppUtils.getWifiMac(this), new SystemInfo());
         otaSdkHelper.setUpgradePath(AppUtils.getDir(this, "upgrade"));
         otaSdkHelper.setAutoCheck(true);
-        otaSdkHelper.setSilentUpgradeTime("23:00", "02:00");
+        otaSdkHelper.setSilentUpgradeTime("00:00", "24:00");
 
         // Read the id and secret of different products from the property.
         sProductId = AppUtils.getProperty("ro.baidu.product.id", sProductId);

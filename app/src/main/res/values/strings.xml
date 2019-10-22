@@ -4,6 +4,7 @@
     <string name="cancel">Cancel</string>
     <string name="retry">Retry</string>
     <string name="confirm">OK</string>
+    <string name="delete">Delete</string>
 
     <string name="upgrade_title">Rom Upgrade</string>
     <string name="upgrade_ok">Upgrade</string>

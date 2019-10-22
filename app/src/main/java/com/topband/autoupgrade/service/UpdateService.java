@@ -55,7 +55,6 @@ public class UpdateService extends Service {
     public static final int COMMAND_CHECK_REMOTE_UPDATING = 2;
     public static final int COMMAND_NEW_VERSION = 3;
     public static final int COMMAND_VERIFY_UPDATE_PACKAGE = 4;
-    public static final int COMMAND_DELETE_UPDATE_PACKAGE = 5;
 
     /**
      * Local upgrade type
@@ -104,7 +103,6 @@ public class UpdateService extends Service {
     public static String sOtaPackageName = "update.zip";
 
     private static volatile boolean sWorkHandleLocked = false;
-    private static volatile boolean isNeedDeletePackage = false;
     private static volatile boolean isFirstStartUp = true;
 
     private Context mContext;
@@ -112,7 +110,6 @@ public class UpdateService extends Service {
     private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
     private AndroidX mAndroidX;
-    private String mLastUpdatePath;
     private Dialog mDialog;
     private ProgressBar mDownloadPgr;
 
@@ -130,11 +127,8 @@ public class UpdateService extends Service {
          * @param packagePath
          */
         void installPackage(String packagePath) {
-            Log.i(TAG, "installPackage, path: " + packagePath);
-
             try {
-                FileUtils.writeFile(OTHER_FLAG_FILE, "watchdog=" + (mAndroidX.watchdogIsOpen() ? "true" : "false"));
-                FileUtils.writeFile(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
+                saveUpdateFlag(packagePath);
 
                 /*
                  * Always turn off the watchdog before installing the upgrade package.
@@ -143,9 +137,22 @@ public class UpdateService extends Service {
                  */
                 mAndroidX.toggleWatchdog(false);
 
-                RecoverySystem.installPackage(mContext, new File(packagePath));
+                /*
+                 * For Android 5.1 and above, replace /storage/emulated/0 with /data/media/0,
+                 * otherwise the recovery will not be accessible.
+                 */
+                String newPackagePath = packagePath;
+                if (packagePath.startsWith(FLASH_ROOT)
+                    && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
+                    newPackagePath = packagePath.replaceAll(FLASH_ROOT, DATA_ROOT);
+                }
+
+                Log.i(TAG, "installPackage, path: " + newPackagePath);
+
+                RecoverySystem.installPackage(mContext, new File(newPackagePath));
             } catch (IOException e) {
                 Log.e(TAG, "installPackage, failed: " + e);
+                sWorkHandleLocked = false;
             }
         }
 
@@ -248,12 +255,6 @@ public class UpdateService extends Service {
             return Service.START_NOT_STICKY;
         }
 
-        if (isNeedDeletePackage) {
-            command = COMMAND_DELETE_UPDATE_PACKAGE;
-            delayTime = 20000;
-            sWorkHandleLocked = true;
-        }
-
         Message msg = new Message();
         msg.what = command;
         msg.obj = bundle;
@@ -269,12 +270,11 @@ public class UpdateService extends Service {
 
         public void handleMessage(Message msg) {
             String path = "";
-
             switch (msg.what) {
                 case COMMAND_CHECK_LOCAL_UPDATING:
                     Log.i(TAG, "WorkHandler, COMMAND_CHECK_LOCAL_UPDATING");
                     if (sWorkHandleLocked) {
-                        Log.w(TAG, "WorkHandler, locked!!!");
+                        Log.i(TAG, "WorkHandler, locked !!!");
                         return;
                     }
 
@@ -307,6 +307,11 @@ public class UpdateService extends Service {
 
                 case COMMAND_NEW_VERSION:
                     Log.i(TAG, "WorkHandler, COMMAND_NEW_VERSION");
+                    if (sWorkHandleLocked) {
+                        Log.i(TAG, "WorkHandler, locked !!!");
+                        return;
+                    }
+
                     Bundle bundle = (Bundle) msg.obj;
                     if (null != bundle) {
                         showNewVersion((NewVersionBean) bundle.getSerializable("new_version"));
@@ -325,24 +330,10 @@ public class UpdateService extends Service {
                     }
                     break;
 
-                case COMMAND_DELETE_UPDATE_PACKAGE:
-                    Log.i(TAG, "WorkHandler, COMMAND_DELETE_UPDATE_PACKAGE");
-                    File f = new File(mLastUpdatePath);
-                    if (f.exists()) {
-                        f.delete();
-                        Log.i(TAG, "WorkHandler, path=" + mLastUpdatePath + ", delete complete!");
-                    } else {
-                        Log.i(TAG, "WorkHandler, path=" + mLastUpdatePath + " , file not exists!");
-                    }
-                    isNeedDeletePackage = false;
-                    sWorkHandleLocked = false;
-                    break;
-
                 default:
                     break;
             }
         }
-
     }
 
     /**
@@ -363,10 +354,8 @@ public class UpdateService extends Service {
             if ((new File(path)).exists()) {
                 packageFile = path;
                 Log.i(TAG, "searchLocalPackage, find package file: " + packageFile);
+                return packageFile;
             }
-        }
-        if (!packageFile.isEmpty()) {
-            return packageFile;
         }
 
         // Find in U disk
@@ -619,9 +608,10 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            builder.setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
+                    deleteFile(path);
                     sWorkHandleLocked = false;
                     dialog.dismiss();
                 }
@@ -630,8 +620,16 @@ public class UpdateService extends Service {
             dialog.setCancelable(false);
             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
             dialog.show();
-
             mDialog = dialog;
+
+            mMainHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    deleteFile(path);
+                    sWorkHandleLocked = false;
+                    dialog.dismiss();
+                }
+            }, 15000);
         }
     }
 
@@ -653,8 +651,15 @@ public class UpdateService extends Service {
         dialog.setCancelable(false);
         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
         dialog.show();
-
         mDialog = dialog;
+
+        mMainHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                sWorkHandleLocked = false;
+                dialog.dismiss();
+            }
+        }, 5000);
     }
 
     /**
@@ -676,8 +681,32 @@ public class UpdateService extends Service {
         dialog.setCancelable(false);
         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
         dialog.show();
-
         mDialog = dialog;
+
+        mMainHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                sWorkHandleLocked = false;
+                dialog.dismiss();
+            }
+        }, 5000);
+    }
+
+    /**
+     * Save the flag to check the upgrade result after the upgrade is complete.
+     * @param packagePath package file
+     * @throws IOException
+     */
+    private void saveUpdateFlag(String packagePath)
+        throws IOException {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("watchdog=").append(mAndroidX.watchdogIsOpen() ? "true" : "false");
+        sb.append("$").append("path=").append(packagePath);
+
+        FileUtils.writeFile(OTHER_FLAG_FILE, sb.toString());
+
+        FileUtils.writeFile(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
     }
 
     /**
@@ -689,36 +718,8 @@ public class UpdateService extends Service {
 
             isFirstStartUp = false;
 
-            // Check the upgrade flag
-            String flag = null;
-            try {
-                flag = FileUtils.readFile(UPDATE_FLAG_FILE);
-            } catch (IOException e) {
-                Log.w(TAG, "checkUpdateFlag, " + e.getMessage());
-            }
-            Log.i(TAG, "checkUpdateFlag, upgrade flag = " + flag);
-
-            if (!TextUtils.isEmpty(flag)) {
-                String[] array = flag.split("\\$");
-                if (array.length == 2) {
-                    if (array[1].startsWith("path")) {
-                        mLastUpdatePath = array[1].substring(array[1].indexOf('=') + 1);
-                    }
-
-                    if (TextUtils.equals(COMMAND_FLAG_SUCCESS, array[0])) {
-                        showUpdateSuccess();
-                        if (mLastUpdatePath.startsWith(AppUtils.getRootDir(this))) {
-                            isNeedDeletePackage = true;
-                        }
-                    } else if (TextUtils.equals(COMMAND_FLAG_UPDATING, array[0])) {
-                        showUpdateFailed();
-                    }
-                }
-                UPDATE_FLAG_FILE.delete();
-            }
-
             // Check the other(watchdog) flag
-            flag = null;
+            String flag = null;
             try {
                 flag = FileUtils.readFile(OTHER_FLAG_FILE);
             } catch (IOException e) {
@@ -736,10 +737,50 @@ public class UpdateService extends Service {
                         if (TextUtils.equals("true", value)) {
                             mAndroidX.toggleWatchdog(true);
                         }
+                    } else if (param.startsWith("path")) {
+                        String lastPath = param.substring(param.indexOf('=') + 1);
+                        Log.i(TAG, "checkUpdateFlag, lastPath=" + lastPath);
+
+                        if (lastPath.startsWith(AppUtils.getRootDir(this))) {
+                            deletePackage(lastPath);
+                        }
+                    }
+                    OTHER_FLAG_FILE.delete();
+                }
+            }
+
+            // Check the upgrade flag
+            flag = null;
+            try {
+                flag = FileUtils.readFile(UPDATE_FLAG_FILE);
+            } catch (IOException e) {
+                Log.w(TAG, "checkUpdateFlag, " + e.getMessage());
+            }
+            Log.i(TAG, "checkUpdateFlag, upgrade flag = " + flag);
+
+            if (!TextUtils.isEmpty(flag)) {
+                String[] array = flag.split("\\$");
+                if (array.length == 2) {
+                    if (TextUtils.equals(COMMAND_FLAG_SUCCESS, array[0])) {
+                        showUpdateSuccess();
+                    } else if (TextUtils.equals(COMMAND_FLAG_UPDATING, array[0])) {
+                        showUpdateFailed();
                     }
                 }
-                OTHER_FLAG_FILE.delete();
+                UPDATE_FLAG_FILE.delete();
             }
+        }
+    }
+
+    /**
+     * Delete upgrade package
+     * @param packagePath package file
+     */
+    private void deletePackage(String packagePath) {
+        File file = new File(packagePath);
+        if (file.exists()) {
+            file.delete();
+            Log.i(TAG, "deletePackage, path=" + packagePath);
         }
     }
 
@@ -792,6 +833,7 @@ public class UpdateService extends Service {
             if (null != mDialog && mDialog.isShowing()) {
                 mDialog.dismiss();
             }
+            sWorkHandleLocked = false;
             Toast.makeText(getApplicationContext(), R.string.upgrade_download_failed_message,
                     Toast.LENGTH_SHORT).show();
         }
@@ -813,12 +855,21 @@ public class UpdateService extends Service {
 
         @Override
         public String installPackage(String pkgName, String file, boolean silence) {
-            Message msg = new Message();
-            msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-            Bundle b = new Bundle();
-            b.putString("path", file);
-            msg.setData(b);
-            mWorkHandler.sendMessage(msg);
+            if (silence) {
+                mMainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        showNewVersionOfForce(file);
+                    }
+                });
+            } else {
+                Message msg = new Message();
+                msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                Bundle b = new Bundle();
+                b.putString("path", file);
+                msg.setData(b);
+                mWorkHandler.sendMessage(msg);
+            }
 
             return "";
         }
