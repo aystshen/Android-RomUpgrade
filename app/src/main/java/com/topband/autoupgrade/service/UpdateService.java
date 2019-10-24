@@ -611,7 +611,7 @@ public class UpdateService extends Service {
             builder.setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
-                    deleteFile(path);
+                    deletePackage(path);
                     sWorkHandleLocked = false;
                     dialog.dismiss();
                 }
@@ -625,7 +625,7 @@ public class UpdateService extends Service {
             mMainHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    deleteFile(path);
+                    deletePackage(path);
                     sWorkHandleLocked = false;
                     dialog.dismiss();
                 }
