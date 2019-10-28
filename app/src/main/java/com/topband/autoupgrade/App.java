@@ -18,8 +18,8 @@ public class App extends OtaApplication {
     /**
      * Baidu otask product id and secret
      */
-    private static final String DEFAULT_PRODUCT_ID = "9552";
-    private static final String DEFAULT_PRODUCT_SECRET = "MTgxZGMxMzE2NjJiNGViYw==";
+    private static final String DEFAULT_PRODUCT_ID = "9732";
+    private static final String DEFAULT_PRODUCT_SECRET = "ZWMzZjQ0M2Q0Y2IyZjg2NA==";
 
     private static IOtaAgent sOtaAgent;
     private static String sProductId = DEFAULT_PRODUCT_ID;
