@@ -191,7 +191,7 @@ public class AppUtils {
      */
     public static String getSwVersionName() {
         if (TextUtils.isEmpty(mSwVersionName)) {
-            mSwVersionName = AppUtils.getProperty("ro.topband.sw.version", "");
+            mSwVersionName = AppUtils.getProperty("ro.topband.sw.version", "1.0.0");
         }
         return mSwVersionName;
     }

@@ -39,7 +39,6 @@ import com.topband.autoupgrade.App;
 import com.topband.autoupgrade.R;
 import com.topband.autoupgrade.baidu.NewVersionBean;
 import com.topband.autoupgrade.config.UsbConfigManager;
-import com.topband.autoupgrade.helper.AndroidX;
 import com.topband.autoupgrade.receiver.UpdateReceiver;
 import com.topband.autoupgrade.util.AppUtils;
 import com.topband.autoupgrade.util.FileUtils;
@@ -109,7 +108,6 @@ public class UpdateService extends Service {
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
-    private AndroidX mAndroidX;
     private Dialog mDialog;
     private ProgressBar mDownloadPgr;
 
@@ -131,19 +129,12 @@ public class UpdateService extends Service {
                 saveUpdateFlag(packagePath);
 
                 /*
-                 * Always turn off the watchdog before installing the upgrade package.
-                 * Otherwise, the watchdog timeout reset during the upgrade process
-                 * will cause serious consequences.
-                 */
-                mAndroidX.toggleWatchdog(false);
-
-                /*
                  * For Android 5.1 and above, replace /storage/emulated/0 with /data/media/0,
                  * otherwise the recovery will not be accessible.
                  */
                 String newPackagePath = packagePath;
                 if (packagePath.startsWith(FLASH_ROOT)
-                    && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
+                        && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
                     newPackagePath = packagePath.replaceAll(FLASH_ROOT, DATA_ROOT);
                 }
 
@@ -201,7 +192,6 @@ public class UpdateService extends Service {
         Log.i(TAG, "onCreate...");
 
         mContext = this;
-        mAndroidX = new AndroidX(this);
 
         // Configure Baidu otasdk custom upgrade interface
         App.getOtaAgent().setCustomUpgrade(new CustomUpgradeInterface());
@@ -694,15 +684,15 @@ public class UpdateService extends Service {
 
     /**
      * Save the flag to check the upgrade result after the upgrade is complete.
+     *
      * @param packagePath package file
      * @throws IOException
      */
     private void saveUpdateFlag(String packagePath)
-        throws IOException {
+            throws IOException {
 
         StringBuilder sb = new StringBuilder();
-        sb.append("watchdog=").append(mAndroidX.watchdogIsOpen() ? "true" : "false");
-        sb.append("$").append("path=").append(packagePath);
+        sb.append("path=").append(packagePath);
 
         FileUtils.writeFile(OTHER_FLAG_FILE, sb.toString());
 
@@ -718,7 +708,7 @@ public class UpdateService extends Service {
 
             isFirstStartUp = false;
 
-            // Check the other(watchdog) flag
+            // Check the other flag
             String flag = null;
             try {
                 flag = FileUtils.readFile(OTHER_FLAG_FILE);
@@ -730,14 +720,7 @@ public class UpdateService extends Service {
             if (!TextUtils.isEmpty(flag)) {
                 String[] array = flag.split("\\$");
                 for (String param : array) {
-                    if (param.startsWith("watchdog")) {
-                        String value = param.substring(param.indexOf('=') + 1);
-                        Log.i(TAG, "checkUpdateFlag, watchdog=" + value);
-
-                        if (TextUtils.equals("true", value)) {
-                            mAndroidX.toggleWatchdog(true);
-                        }
-                    } else if (param.startsWith("path")) {
+                    if (param.startsWith("path")) {
                         String lastPath = param.substring(param.indexOf('=') + 1);
                         Log.i(TAG, "checkUpdateFlag, lastPath=" + lastPath);
 
@@ -774,6 +757,7 @@ public class UpdateService extends Service {
 
     /**
      * Delete upgrade package
+     *
      * @param packagePath package file
      */
     private void deletePackage(String packagePath) {
