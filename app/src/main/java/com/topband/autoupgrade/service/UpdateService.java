@@ -211,6 +211,7 @@ public class UpdateService extends Service {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         intentFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        intentFilter.addDataScheme("file");
         intentFilter.addAction("android.hardware.usb.action.USB_STATE");
         intentFilter.addAction("android.os.storage.action.VOLUME_STATE_CHANGED");
         intentFilter.addAction(Constants.BROADCAST_NEWVERSION); // For Baidu otasdk
