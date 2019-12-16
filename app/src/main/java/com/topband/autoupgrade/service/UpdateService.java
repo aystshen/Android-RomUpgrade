@@ -108,6 +108,7 @@ public class UpdateService extends Service {
     private WorkHandler mWorkHandler;
     private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
+    private UpdateReceiver mMediaMountReceiver;
     private Dialog mDialog;
     private ProgressBar mDownloadPgr;
 
@@ -210,12 +211,17 @@ public class UpdateService extends Service {
         mUpdateReceiver = new UpdateReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        intentFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
-        intentFilter.addDataScheme("file");
         intentFilter.addAction("android.hardware.usb.action.USB_STATE");
         intentFilter.addAction("android.os.storage.action.VOLUME_STATE_CHANGED");
         intentFilter.addAction(Constants.BROADCAST_NEWVERSION); // For Baidu otasdk
         this.registerReceiver(mUpdateReceiver, intentFilter);
+
+        mMediaMountReceiver = new UpdateReceiver();
+        IntentFilter mediaFilter = new IntentFilter();
+        mediaFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        mediaFilter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        mediaFilter.addDataScheme("file");
+        this.registerReceiver(mMediaMountReceiver, mediaFilter);
 
         checkUpdateFlag();
     }
@@ -225,6 +231,7 @@ public class UpdateService extends Service {
         Log.i(TAG, "onDestroy...");
 
         this.unregisterReceiver(mUpdateReceiver);
+        this.unregisterReceiver(mMediaMountReceiver);
 
         super.onDestroy();
     }
