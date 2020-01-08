@@ -1,4 +1,4 @@
-package com.topband.autoupgrade.util;
+package com.ayst.romupgrade.util;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;

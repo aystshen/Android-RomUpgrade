@@ -1,4 +1,4 @@
-package com.topband.autoupgrade.service;
+package com.ayst.romupgrade.service;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -35,13 +35,13 @@ import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeInterface;
 import com.baidu.commonlib.interfaces.IUpgradeListener;
 import com.baidu.otasdk.ota.Constants;
-import com.topband.autoupgrade.App;
-import com.topband.autoupgrade.R;
-import com.topband.autoupgrade.baidu.NewVersionBean;
-import com.topband.autoupgrade.config.UsbConfigManager;
-import com.topband.autoupgrade.receiver.UpdateReceiver;
-import com.topband.autoupgrade.util.AppUtils;
-import com.topband.autoupgrade.util.FileUtils;
+import com.ayst.romupgrade.App;
+import com.ayst.romupgrade.R;
+import com.ayst.romupgrade.baidu.NewVersionBean;
+import com.ayst.romupgrade.config.UsbConfigManager;
+import com.ayst.romupgrade.receiver.UpdateReceiver;
+import com.ayst.romupgrade.util.AppUtils;
+import com.ayst.romupgrade.util.FileUtils;
 
 public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
@@ -211,8 +211,8 @@ public class UpdateService extends Service {
         mUpdateReceiver = new UpdateReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        intentFilter.addAction("android.hardware.usb.action.USB_STATE");
-        intentFilter.addAction("android.os.storage.action.VOLUME_STATE_CHANGED");
+        intentFilter.addAction(UpdateReceiver.UsbManager.ACTION_USB_STATE);
+        intentFilter.addAction(UpdateReceiver.VolumeInfo.ACTION_VOLUME_STATE_CHANGED);
         intentFilter.addAction(Constants.BROADCAST_NEWVERSION); // For Baidu otasdk
         this.registerReceiver(mUpdateReceiver, intentFilter);
 

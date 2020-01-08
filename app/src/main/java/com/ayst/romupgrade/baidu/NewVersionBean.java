@@ -1,4 +1,4 @@
-package com.topband.autoupgrade.baidu;
+package com.ayst.romupgrade.baidu;
 
 import com.google.gson.annotations.SerializedName;
 

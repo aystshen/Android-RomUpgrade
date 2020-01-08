@@ -1,4 +1,4 @@
-package com.topband.autoupgrade.config;
+package com.ayst.romupgrade.config;
 
 import android.content.Context;
 import android.util.Log;

@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="ProtectedPermissions"
-    package="com.topband.autoupgrade"
+    package="com.ayst.romupgrade"
     android:sharedUserId="android.uid.system">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -21,7 +21,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
-        android:name=".App"
+        android:name="com.ayst.romupgrade.App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -31,12 +31,12 @@
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
 
         <service
-            android:name=".service.UpdateService"
+            android:name="com.ayst.romupgrade.service.UpdateService"
             android:enabled="true"
             android:exported="true" />
 
         <receiver
-            android:name=".receiver.UpdateReceiver"
+            android:name="com.ayst.romupgrade.receiver.UpdateReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

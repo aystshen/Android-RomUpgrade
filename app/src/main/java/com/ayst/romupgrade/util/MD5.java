@@ -1,4 +1,4 @@
-package com.topband.autoupgrade.util;
+package com.ayst.romupgrade.util;
 
 import java.io.FileInputStream;
 import java.io.IOException;

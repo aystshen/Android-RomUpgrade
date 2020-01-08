@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.topband.autoupgrade.ui.MainActivity">
+    tools:context="com.ayst.romupgrade.ui.MainActivity">
 
     <TextView
         android:id="@+id/sample_text"

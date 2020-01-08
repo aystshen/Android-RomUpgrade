@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.topband.autoupgrade.util;
+package com.ayst.romupgrade.util;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;

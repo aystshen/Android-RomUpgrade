@@ -1,7 +1,7 @@
-package com.topband.autoupgrade.baidu;
+package com.ayst.romupgrade.baidu;
 
 import com.baidu.commonlib.interfaces.ISystemInfo;
-import com.topband.autoupgrade.util.AppUtils;
+import com.ayst.romupgrade.util.AppUtils;
 
 public class SystemInfo implements ISystemInfo {
     @Override

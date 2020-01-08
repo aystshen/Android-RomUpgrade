@@ -1,4 +1,4 @@
-package com.topband.autoupgrade;
+package com.ayst.romupgrade;
 
 import android.util.Log;
 
@@ -6,8 +6,8 @@ import com.baidu.commonlib.interfaces.IOtaAgent;
 import com.baidu.commonlib.interfaces.IOtaSdkHelper;
 import com.baidu.otasdk.ota.OtaApplication;
 import com.liulishuo.filedownloader.FileDownloader;
-import com.topband.autoupgrade.baidu.SystemInfo;
-import com.topband.autoupgrade.util.AppUtils;
+import com.ayst.romupgrade.baidu.SystemInfo;
+import com.ayst.romupgrade.util.AppUtils;
 
 /**
  * Created by ayst.shen@foxmail.com on 2017/12/13.
