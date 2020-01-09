@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.List;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -13,6 +14,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,6 +32,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.Toast;
+
+import androidx.core.content.FileProvider;
 
 import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeInterface;
@@ -66,6 +70,11 @@ public class UpdateService extends Service {
      * USB config filename
      */
     public static final String USB_CONFIG_FILENAME = "config.ini";
+
+    /**
+     * APP local update path
+     */
+    public static String APP_UPDATE_PATH = "appupdate";
 
     /**
      * Local upgrade package search path
@@ -276,17 +285,7 @@ public class UpdateService extends Service {
                         return;
                     }
 
-                    path = searchLocalPackage();
-                    if (!TextUtils.isEmpty(path)) {
-                        Log.i(TAG, "WorkHandler, found package: " + path);
-                        if (UPDATE_TYPE_FORCE == mUpdateType) {
-                            showNewVersionOfForce(path);
-                        } else {
-                            showNewVersion(path);
-                        }
-                    } else {
-                        Log.i(TAG, "WorkHandler, not found package");
-                    }
+                    checkLocalUpdate();
                     break;
 
                 case COMMAND_CHECK_REMOTE_UPDATING:
@@ -335,70 +334,103 @@ public class UpdateService extends Service {
     }
 
     /**
-     * Search for local upgrade packages
-     *
-     * @return package path
+     * Check local update (apk and rom)
      */
-    private String searchLocalPackage() {
-        String packageFile = "";
-        for (String dirPath : UpdateService.PACKAGE_FILE_DIRS) {
-            String path = dirPath + USB_CONFIG_FILENAME;
-            if ((new File(path)).exists()) {
-                mUpdateType = new UsbConfigManager(this, new File(path)).getUpdateType();
-                Log.i(TAG, "searchLocalPackage, find config file: " + path);
-            }
+    private void checkLocalUpdate() {
+        File[] apkFiles = null;
+        String otaPackage = "";
 
-            path = dirPath + sOtaPackageName;
-            if ((new File(path)).exists()) {
-                packageFile = path;
-                Log.i(TAG, "searchLocalPackage, find package file: " + packageFile);
-                return packageFile;
-            }
-        }
+        List<String> searchPaths = AppUtils.getStorageList(this);
 
-        // Find in U disk
-        String usbRootDir = USB_ROOT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            usbRootDir = USB_ROOT_M;
-        }
-        Log.i(TAG, "searchLocalPackage, find usb: " + usbRootDir);
-        File usbRoot = new File(usbRootDir);
-        if (usbRoot.listFiles() == null) {
-            return "";
-        }
+        for (String dirPath : searchPaths) {
+            Log.d(TAG, "checkLocalUpdate, search: " + dirPath);
 
-        for (File file : usbRoot.listFiles()) {
-            if (file.isDirectory()) {
-                File[] files = file.listFiles(new FileFilter() {
+            int updateType = UPDATE_TYPE_RECOMMEND;
 
-                    @Override
-                    public boolean accept(File tmpFile) {
-                        Log.i(TAG, "searchLocalPackage, scan usb files: " + tmpFile.getAbsolutePath());
-                        return (!tmpFile.isDirectory() && (tmpFile.getName().equals(sOtaPackageName)
-                                || tmpFile.getName().equals(USB_CONFIG_FILENAME)));
+            File dir = new File(dirPath);
+            for (File file : dir.listFiles()) {
+
+                if (file.isDirectory()) {
+                    if (TextUtils.equals(file.getName(), APP_UPDATE_PATH)) {
+                        apkFiles = file.listFiles(new FileFilter() {
+                            @Override
+                            public boolean accept(File tmpFile) {
+                                return (!tmpFile.isDirectory() && TextUtils.equals(
+                                        FileUtils.getFileSuffix(tmpFile.getName()), "apk"));
+                            }
+                        });
                     }
-                });
 
-                if (files != null && files.length > 0) {
-                    for (File tmpFile : files) {
-                        if (tmpFile.getName().equals(USB_CONFIG_FILENAME)) {
-                            mUpdateType = new UsbConfigManager(this, new File(tmpFile.getAbsolutePath())).getUpdateType();
-                            Log.i(TAG, "searchLocalPackage, found config file: " + tmpFile.getAbsolutePath());
-                        }
+                } else {
+                    if (TextUtils.equals(file.getName(), USB_CONFIG_FILENAME)) {
+                        updateType = new UsbConfigManager(this, new File(file.getAbsolutePath())).getUpdateType();
 
-                        if (tmpFile.getName().equals(sOtaPackageName)) {
-                            packageFile = tmpFile.getAbsolutePath();
-                            Log.i(TAG, "searchLocalPackage, found package file: " + packageFile);
-                        }
-                    }
-                    if (!packageFile.isEmpty()) {
-                        return packageFile;
+                    } else if (TextUtils.equals(file.getName(), sOtaPackageName)) {
+                        otaPackage = file.getAbsolutePath();
                     }
                 }
             }
-        }
 
-        return "";
+            if (!TextUtils.isEmpty(otaPackage)) {
+                Log.i(TAG, "checkLocalUpdate, found package file: " + otaPackage
+                        + ", updateType=" + updateType);
+
+                if (UPDATE_TYPE_FORCE == updateType) {
+                    showNewVersionOfForce(otaPackage);
+                } else {
+                    showNewVersion(otaPackage);
+                }
+                break;
+
+            } else if (null != apkFiles && apkFiles.length > 0) {
+                for (File apk : apkFiles) {
+                    Log.i(TAG, "checkLocalUpdate, found apk files: " + apk.getAbsolutePath());
+                }
+                showNewVersion(apkFiles);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Local app new version dialog
+     *
+     * @param files apk file
+     */
+    private void showNewVersion(final File[] files) {
+        if (null != files && files.length > 0) {
+            sWorkHandleLocked = true;
+
+            StringBuilder sb = new StringBuilder();
+            for (File file : files) {
+                sb.append(file.getAbsolutePath()).append("\n");
+            }
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+            builder.setTitle(R.string.app_upgrade_title);
+            builder.setMessage(getString(R.string.app_upgrade_message) + sb.toString());
+            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    install(files);
+
+                    dialog.dismiss();
+                }
+            });
+            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int i) {
+                    sWorkHandleLocked = false;
+                    dialog.dismiss();
+                }
+            });
+            final Dialog dialog = builder.create();
+            dialog.setCancelable(false);
+            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+            dialog.show();
+
+            mDialog = dialog;
+        }
     }
 
     /**
@@ -788,6 +820,44 @@ public class UpdateService extends Service {
         }
 
         return str;
+    }
+
+    private void install(File[] files) {
+        sWorkHandleLocked = false;
+
+        for (File file : files) {
+            install(file);
+        }
+    }
+
+    private void install(File file) {
+        Log.i(TAG, "install, file=" + file.getPath());
+
+        if (file.exists()) {
+            file.setReadable(true, false);
+            file.setWritable(true, false);
+            file.setExecutable(true, false);
+
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Uri contentUri = FileProvider.getUriForFile(this,
+                        "com.ayst.romupgrade.fileProvider",
+                        file);
+                intent.setDataAndType(contentUri,
+                        "application/vnd.android.package-archive");
+            } else {
+                intent.setDataAndType(Uri.parse("file://" + file.getPath()),
+                        "application/vnd.android.package-archive");
+            }
+
+            startActivity(intent);
+        } else {
+            Log.e(TAG, file.getPath() + " not exist!");
+        }
     }
 
     /**

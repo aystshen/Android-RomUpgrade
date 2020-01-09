@@ -9,15 +9,24 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Environment;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.annotation.RequiresApi;
+
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -61,6 +70,7 @@ public class AppUtils {
 
     /**
      * Is first run
+     *
      * @param context
      * @return
      */
@@ -74,6 +84,7 @@ public class AppUtils {
 
     /**
      * Get application version name
+     *
      * @param context Context
      * @return version name
      */
@@ -93,6 +104,7 @@ public class AppUtils {
 
     /**
      * Get application version code
+     *
      * @param context Context
      * @return version code
      */
@@ -112,6 +124,7 @@ public class AppUtils {
 
     /**
      * Get product name
+     *
      * @return product name
      */
     public static String getProductName() {
@@ -123,6 +136,7 @@ public class AppUtils {
 
     /**
      * Get chip platform
+     *
      * @return platform
      */
     public static String getPlatform() {
@@ -134,6 +148,7 @@ public class AppUtils {
 
     /**
      * Get product id
+     *
      * @return product id
      */
     public static String getProductId() {
@@ -145,6 +160,7 @@ public class AppUtils {
 
     /**
      * Get hardware version code
+     *
      * @return version code
      */
     public static int getHwVersionCode() {
@@ -164,6 +180,7 @@ public class AppUtils {
 
     /**
      * Get hardware version name
+     *
      * @return version name
      */
     public static String getHwVersionName() {
@@ -175,6 +192,7 @@ public class AppUtils {
 
     /**
      * Get firmware version code
+     *
      * @return version code
      */
     public static int getSwVersionCode() {
@@ -187,6 +205,7 @@ public class AppUtils {
 
     /**
      * Get firmware version name
+     *
      * @return version name
      */
     public static String getSwVersionName() {
@@ -198,6 +217,7 @@ public class AppUtils {
 
     /**
      * Get Android version
+     *
      * @return version
      */
     public static String getAndroidVersion() {
@@ -206,6 +226,7 @@ public class AppUtils {
 
     /**
      * Get serial number
+     *
      * @return serial number
      */
     @SuppressLint("HardwareIds")
@@ -223,6 +244,7 @@ public class AppUtils {
 
     /**
      * Get device id
+     *
      * @return device id
      */
     public static String getDeviceId() {
@@ -231,6 +253,7 @@ public class AppUtils {
 
     /**
      * Get current country
+     *
      * @return country
      */
     public static String getCountry() {
@@ -239,6 +262,7 @@ public class AppUtils {
 
     /**
      * Get current language
+     *
      * @return language
      */
     public static String getLanguage() {
@@ -247,6 +271,7 @@ public class AppUtils {
 
     /**
      * Whether the network is connected
+     *
      * @param context Context
      * @return true/false
      */
@@ -259,6 +284,7 @@ public class AppUtils {
 
     /**
      * Whether WiFi is connected
+     *
      * @param context Context
      * @return true/false
      */
@@ -271,6 +297,7 @@ public class AppUtils {
 
     /**
      * Get Ethernet MAC
+     *
      * @param context
      * @return
      */
@@ -297,6 +324,7 @@ public class AppUtils {
 
     /**
      * Get WiFi MAC
+     *
      * @param context
      * @return
      */
@@ -313,6 +341,7 @@ public class AppUtils {
 
     /**
      * Get MAC, get the Ethernet MAC first, then get the WiFi MAC if it is empty.
+     *
      * @param context
      * @return
      */
@@ -328,6 +357,7 @@ public class AppUtils {
 
     /**
      * Get the MAC with the colon removed
+     *
      * @param context
      * @return
      */
@@ -343,6 +373,7 @@ public class AppUtils {
 
     /**
      * Get screen width
+     *
      * @param context Activity
      * @return screen width
      */
@@ -355,6 +386,7 @@ public class AppUtils {
 
     /**
      * Get screen height
+     *
      * @param context Activity
      * @return screen height
      */
@@ -365,12 +397,60 @@ public class AppUtils {
         return mScreenHeight;
     }
 
+    /**
+     * Get property
+     *
+     * @param key          property key
+     * @param defaultValue default value
+     * @return property value
+     */
+    @SuppressLint("PrivateApi")
+    public static String getProperty(String key, String defaultValue) {
+        String value = defaultValue;
+        try {
+            Class<?> c = Class.forName("android.os.SystemProperties");
+            Method get = c.getMethod("get", String.class, String.class);
+            value = (String) (get.invoke(c, key, defaultValue));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return value;
+    }
+
+    /**
+     * Set property
+     *
+     * @param key   property key
+     * @param value property value
+     */
+    @SuppressLint("PrivateApi")
+    public static void setProperty(String key, String value) {
+        try {
+            Class<?> c = Class.forName("android.os.SystemProperties");
+            Method set = c.getMethod("set", String.class, String.class);
+            set.invoke(c, key, value);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Get UUID
+     *
+     * @return UUID
+     */
+    public static String getUUID() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
     private static boolean isExternalStorageMounted() {
         return Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState());
     }
 
     /**
      * Get the root storage path
+     *
      * @param context Context
      * @return path
      */
@@ -404,6 +484,7 @@ public class AppUtils {
 
     /**
      * Get relative storage path
+     *
      * @param context Context
      * @param dirName relative path
      * @return full path
@@ -419,46 +500,96 @@ public class AppUtils {
     }
 
     /**
-     * Get property
-     * @param key property key
-     * @param defaultValue default value
-     * @return property value
+     * Get all external storage paths
+     *
+     * @param context context
+     * @return storage paths
      */
-    @SuppressLint("PrivateApi")
-    public static String getProperty(String key, String defaultValue) {
-        String value = defaultValue;
-        try {
-            Class<?> c = Class.forName("android.os.SystemProperties");
-            Method get = c.getMethod("get", String.class, String.class);
-            value = (String) (get.invoke(c, key, defaultValue));
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static List<String> getStorageList(Context context) {
+        List<String> paths;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            paths = getStorageVolumeList(context);
+        } else {
+            paths = getMountPathList();
         }
 
-        return value;
+        if (paths.isEmpty() && isExternalStorageMounted()) {
+            paths.add(Environment.getExternalStorageDirectory()
+                    .getAbsolutePath());
+        }
+        return paths;
     }
 
     /**
-     * Set property
-     * @param key property key
-     * @param value property value
+     * Get all external storage paths, for lower than Android N
+     *
+     * @return storage paths
      */
-    @SuppressLint("PrivateApi")
-    public static void setProperty(String key, String value) {
+    private static List<String> getMountPathList() {
+        List<String> paths = new ArrayList<String>();
+
         try {
-            Class<?> c = Class.forName("android.os.SystemProperties");
-            Method set = c.getMethod("set", String.class, String.class);
-            set.invoke(c, key, value);
+            Process p = Runtime.getRuntime().exec("cat /proc/mounts");
+            BufferedInputStream inputStream = new BufferedInputStream(p.getInputStream());
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                Log.i(TAG, "getMountPathList, " + line);
+
+                // /data/media /storage/emulated/0 sdcardfs rw,nosuid,nodev,relatime,uid=1023,gid=1023 0 0
+                String[] temp = TextUtils.split(line, " ");
+                String result = temp[1];
+                File file = new File(result);
+                if (file.isDirectory() && file.canRead() && file.canWrite()) {
+                    Log.d(TAG, "getMountPathList, add --> " + file.getAbsolutePath());
+                    paths.add(result);
+                }
+
+                if (p.waitFor() != 0 && p.exitValue() == 1) {
+                    Log.e(TAG, "getMountPathList, cmd execute failed!");
+                }
+            }
+            bufferedReader.close();
+            inputStream.close();
+
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "getMountPathList, failed, " + e.toString());
         }
+
+        return paths;
     }
 
     /**
-     * Get UUID
-     * @return UUID
+     * Get all external storage paths, for higher than Android N
+     *
+     * @param context context
+     * @return storage paths
      */
-    public static String getUUID() {
-        return UUID.randomUUID().toString().replace("-", "");
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private static List<String> getStorageVolumeList(Context context) {
+        List<String> paths = new ArrayList<String>();
+        StorageManager storageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
+        List<StorageVolume> volumes = storageManager.getStorageVolumes();
+
+        try {
+            Class<?> storageVolumeClazz = Class.forName("android.os.storage.StorageVolume");
+            Method getPath = storageVolumeClazz.getMethod("getPath");
+            Method isRemovable = storageVolumeClazz.getMethod("isRemovable");
+
+            for (StorageVolume storageVolume : volumes) {
+                String storagePath = (String) getPath.invoke(storageVolume);
+                boolean isRemovableResult = (boolean) isRemovable.invoke(storageVolume);
+                String description = storageVolume.getDescription(context);
+                paths.add(storagePath);
+
+                Log.d(TAG, "getStorageVolumeList, storagePath=" + storagePath
+                        + ", isRemovableResult=" + isRemovableResult + ", description=" + description);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "getStorageVolumeList, failed, " + e);
+        }
+
+        return paths;
     }
 }

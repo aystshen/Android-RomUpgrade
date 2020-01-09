@@ -6,6 +6,9 @@
     <string name="confirm">OK</string>
     <string name="delete">Delete</string>
 
+    <string name="app_upgrade_title">App Upgrade</string>
+    <string name="app_upgrade_message">"Found a new app, is it upgraded?\n"</string>
+
     <string name="upgrade_title">Rom Upgrade</string>
     <string name="upgrade_ok">Upgrade</string>
     <string name="upgrade_cancel">Cancel</string>

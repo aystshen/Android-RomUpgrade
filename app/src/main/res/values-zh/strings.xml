@@ -6,6 +6,9 @@
     <string name="confirm">确认</string>
     <string name="delete">删除</string>
 
+    <string name="app_upgrade_title">应用升级</string>
+    <string name="app_upgrade_message">"发现新的应用版本，是否升级？\n"</string>
+
     <string name="upgrade_title">系统升级</string>
     <string name="upgrade_ok">立即升级</string>
     <string name="upgrade_cancel">暂不升级</string>

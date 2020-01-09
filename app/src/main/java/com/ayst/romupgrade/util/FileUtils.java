@@ -25,6 +25,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 
 import java.io.*;
 
@@ -35,7 +36,8 @@ public class FileUtils {
 
     /**
      * Write file
-     * @param file Write file
+     *
+     * @param file    Write file
      * @param message Written content
      * @throws IOException
      */
@@ -52,6 +54,7 @@ public class FileUtils {
 
     /**
      * Read file
+     *
      * @param file Read file
      * @return Read content
      * @throws IOException
@@ -74,9 +77,28 @@ public class FileUtils {
     }
 
     /**
+     * Get file suffix
+     *
+     * @param fileName file name
+     * @return suffix
+     */
+    public static String getFileSuffix(String fileName) {
+        if (!TextUtils.isEmpty(fileName) && fileName.length() > 3) {
+            int dot = fileName.lastIndexOf(".");
+            if (dot > 0) {
+                return fileName.substring(dot + 1);
+            } else {
+                return "";
+            }
+        }
+        return "";
+    }
+
+    /**
      * Get the file path from uri
+     *
      * @param context Context
-     * @param uri Uri
+     * @param uri     Uri
      * @return File path
      */
     public static String getFilePathByUri(Context context, Uri uri) {
