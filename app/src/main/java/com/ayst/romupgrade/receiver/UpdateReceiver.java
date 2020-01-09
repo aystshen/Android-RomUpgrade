@@ -43,7 +43,7 @@ import java.util.List;
  * Intent.ACTION_BOOT_COMPLETED
  * ConnectivityManager.CONNECTIVITY_ACTION
  * Intent.ACTION_MEDIA_MOUNTED
- * android.hardware.usb.action.USB_STATE
+ * UsbManager.ACTION_USB_STATE
  * VolumeInfo.ACTION_VOLUME_STATE_CHANGED
  * Constants.BROADCAST_NEWVERSION
  * <p>
