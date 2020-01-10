@@ -39,7 +39,7 @@ public class App extends OtaApplication {
     @Override
     protected void initService(IOtaSdkHelper otaSdkHelper) {
         otaSdkHelper.init(AppUtils.getDeviceId(), new SystemInfo());
-        otaSdkHelper.setUpgradePath(AppUtils.getDir(this, "upgrade"));
+        otaSdkHelper.setUpgradePath(AppUtils.getExternalDir(this, "upgrade"));
         otaSdkHelper.setAutoCheck(true);
         otaSdkHelper.setSilentUpgradeTime("00:00", "24:00");
 

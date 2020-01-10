@@ -6,20 +6,19 @@
     <string name="confirm">OK</string>
     <string name="delete">Delete</string>
 
-    <string name="app_upgrade_title">App Upgrade</string>
-    <string name="app_upgrade_message">"Found a new app, is it upgraded?\n"</string>
-
-    <string name="upgrade_title">Rom Upgrade</string>
+    <string name="upgrade_title">Upgrade</string>
     <string name="upgrade_ok">Upgrade</string>
     <string name="upgrade_cancel">Cancel</string>
     <string name="upgrade_version">Version: </string>
-    <string name="upgrade_message">"Found a new system version, is it upgraded?\n"</string>
-    <string name="upgrade_message_force">"Found a new system version and upgrade automatically after 5 seconds!\n"</string>
+    <string name="upgrade_message">"Found a new version, is it upgraded?\n"</string>
+    <string name="upgrade_message_force">"Found a new version and upgrade automatically after 5 seconds!\n"</string>
     <string name="upgrade_downloading_message">Downloading, please wait…</string>
     <string name="upgrade_downloaded_message">Download completed, is it upgraded?</string>
     <string name="upgrade_invalid_package_message">"Verification failed!\n"</string>
     <string name="upgrade_success_message">Upgrade success!</string>
     <string name="upgrade_failed_message">Upgrade failed!</string>
     <string name="upgrade_download_failed_message">Download failed!</string>
+    <string name="upgrade_install_success">%1$s install success!</string>
+    <string name="upgrade_install_failed">%1$s install failed!</string>
 
 </resources>

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.List;
 
 import android.app.AlertDialog;
@@ -14,7 +15,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
-import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,8 +33,11 @@ import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import androidx.core.content.FileProvider;
-
+import com.ayst.romupgrade.entity.LocalPackage;
+import com.ayst.romupgrade.util.SilentInstall;
+import com.ayst.romupgrade.util.filecopy.FileCopyTask;
+import com.ayst.romupgrade.util.filecopy.FileCopyTaskParam;
+import com.ayst.romupgrade.util.filecopy.IFileCopyListener;
 import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeInterface;
 import com.baidu.commonlib.interfaces.IUpgradeListener;
@@ -63,8 +66,7 @@ public class UpdateService extends Service {
      * Local upgrade type
      */
     public static final int UPDATE_TYPE_RECOMMEND = 1;
-    public static final int UPDATE_TYPE_FORCE = 2;
-    private int mUpdateType = UPDATE_TYPE_RECOMMEND;
+    public static final int UPDATE_TYPE_SILENT = 2;
 
     /**
      * USB config filename
@@ -74,7 +76,7 @@ public class UpdateService extends Service {
     /**
      * APP local update path
      */
-    public static String APP_UPDATE_PATH = "appupdate";
+    public static String LOCAL_UPDATE_PATH = "exupdate";
 
     /**
      * Local upgrade package search path
@@ -120,6 +122,9 @@ public class UpdateService extends Service {
     private UpdateReceiver mMediaMountReceiver;
     private Dialog mDialog;
     private ProgressBar mDownloadPgr;
+
+    private int mLocalPackageIndex = 0;
+    private List<LocalPackage> mLocalPackages = new ArrayList<>();
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -337,83 +342,77 @@ public class UpdateService extends Service {
      * Check local update (apk and rom)
      */
     private void checkLocalUpdate() {
-        File[] apkFiles = null;
-        String otaPackage = "";
+        mLocalPackageIndex = 0;
+        mLocalPackages.clear();
 
         List<String> searchPaths = AppUtils.getStorageList(this);
-
         for (String dirPath : searchPaths) {
-            Log.d(TAG, "checkLocalUpdate, search: " + dirPath);
+            Log.i(TAG, "checkLocalUpdate, search: " + dirPath);
 
             int updateType = UPDATE_TYPE_RECOMMEND;
-
             File dir = new File(dirPath);
             for (File file : dir.listFiles()) {
 
                 if (file.isDirectory()) {
-                    if (TextUtils.equals(file.getName(), APP_UPDATE_PATH)) {
-                        apkFiles = file.listFiles(new FileFilter() {
+                    if (TextUtils.equals(file.getName(), LOCAL_UPDATE_PATH)) {
+                        File[] files = file.listFiles(new FileFilter() {
                             @Override
                             public boolean accept(File tmpFile) {
                                 return (!tmpFile.isDirectory() && TextUtils.equals(
                                         FileUtils.getFileSuffix(tmpFile.getName()), "apk"));
                             }
                         });
-                    }
 
-                } else {
-                    if (TextUtils.equals(file.getName(), USB_CONFIG_FILENAME)) {
-                        updateType = new UsbConfigManager(this, new File(file.getAbsolutePath())).getUpdateType();
+                        for (File apkFile : files) {
+                            mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_APP, apkFile));
+                        }
 
-                    } else if (TextUtils.equals(file.getName(), sOtaPackageName)) {
-                        otaPackage = file.getAbsolutePath();
+                        File configFile = new File(file, USB_CONFIG_FILENAME);
+                        if (configFile.exists()) {
+                            updateType = new UsbConfigManager(this, configFile).getUpdateType();
+                        }
+
+                        File otaFile = new File(file, sOtaPackageName);
+                        if (otaFile.exists()) {
+                            mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
+                        }
                     }
                 }
             }
 
-            if (!TextUtils.isEmpty(otaPackage)) {
-                Log.i(TAG, "checkLocalUpdate, found package file: " + otaPackage
-                        + ", updateType=" + updateType);
-
-                if (UPDATE_TYPE_FORCE == updateType) {
-                    showNewVersionOfForce(otaPackage);
-                } else {
-                    showNewVersion(otaPackage);
+            if (!mLocalPackages.isEmpty()) {
+                for (LocalPackage localPackage : mLocalPackages) {
+                    Log.i(TAG, "checkLocalUpdate, found: " + localPackage.toString());
                 }
-                break;
 
-            } else if (null != apkFiles && apkFiles.length > 0) {
-                for (File apk : apkFiles) {
-                    Log.i(TAG, "checkLocalUpdate, found apk files: " + apk.getAbsolutePath());
-                }
-                showNewVersion(apkFiles);
+                showNewVersion(updateType);
                 break;
             }
         }
     }
 
     /**
-     * Local app new version dialog
-     *
-     * @param files apk file
+     * Local new version dialog
      */
-    private void showNewVersion(final File[] files) {
-        if (null != files && files.length > 0) {
-            sWorkHandleLocked = true;
+    private void showNewVersion(int updateType) {
+        sWorkHandleLocked = true;
 
-            StringBuilder sb = new StringBuilder();
-            for (File file : files) {
-                sb.append(file.getAbsolutePath()).append("\n");
-            }
+        StringBuilder sb = new StringBuilder();
+        for (LocalPackage localPackage : mLocalPackages) {
+            sb.append(localPackage.getFile().getName()).append("\n");
+        }
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle(R.string.app_upgrade_title);
-            builder.setMessage(getString(R.string.app_upgrade_message) + sb.toString());
+        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
+        builder.setTitle(R.string.upgrade_title);
+
+        if (UPDATE_TYPE_SILENT == updateType) {
+            builder.setMessage(getString(R.string.upgrade_message_force) + sb.toString());
+        } else {
+            builder.setMessage(getString(R.string.upgrade_message) + sb.toString());
             builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    install(files);
-
+                    installNext();
                     dialog.dismiss();
                 }
             });
@@ -424,23 +423,31 @@ public class UpdateService extends Service {
                     dialog.dismiss();
                 }
             });
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
+        }
 
-            mDialog = dialog;
+        final Dialog dialog = builder.create();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        if (UPDATE_TYPE_SILENT == updateType) {
+            mWorkHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    installNext();
+                    dialog.dismiss();
+                }
+            }, 5000);
         }
     }
 
     /**
      * Local new version dialog
      *
-     * @param path
+     * @param path rom ota package
      */
     private void showNewVersion(final String path) {
         if (!TextUtils.isEmpty(path)) {
-            sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
             builder.setTitle(R.string.upgrade_title);
             builder.setMessage(getString(R.string.upgrade_message) + path);
@@ -461,7 +468,6 @@ public class UpdateService extends Service {
             builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
-                    sWorkHandleLocked = false;
                     dialog.dismiss();
                 }
             });
@@ -481,7 +487,6 @@ public class UpdateService extends Service {
      */
     private void showNewVersionOfForce(final String path) {
         if (!TextUtils.isEmpty(path)) {
-            sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
             builder.setTitle(R.string.upgrade_title);
             builder.setMessage(getString(R.string.upgrade_message_force) + path);
@@ -515,7 +520,6 @@ public class UpdateService extends Service {
      */
     private void showNewVersion(final NewVersionBean newVersion) {
         if (null != newVersion) {
-            sWorkHandleLocked = true;
             AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
             builder.setTitle(R.string.upgrade_title);
             builder.setMessage(getString(R.string.upgrade_message)
@@ -534,7 +538,6 @@ public class UpdateService extends Service {
             builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
-                    sWorkHandleLocked = false;
                     dialog.dismiss();
                 }
             });
@@ -568,7 +571,6 @@ public class UpdateService extends Service {
         builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
-                sWorkHandleLocked = false;
                 // Abort download
                 App.getOtaAgent().downLoadAbortAll();
                 dialog.dismiss();
@@ -602,7 +604,6 @@ public class UpdateService extends Service {
         builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int i) {
-                sWorkHandleLocked = false;
                 dialog.dismiss();
             }
         });
@@ -641,8 +642,8 @@ public class UpdateService extends Service {
             builder.setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int i) {
-                    deletePackage(path);
                     sWorkHandleLocked = false;
+                    deletePackage(path);
                     dialog.dismiss();
                 }
             });
@@ -655,8 +656,8 @@ public class UpdateService extends Service {
             mMainHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    deletePackage(path);
                     sWorkHandleLocked = false;
+                    deletePackage(path);
                     dialog.dismiss();
                 }
             }, 15000);
@@ -667,7 +668,6 @@ public class UpdateService extends Service {
      * Upgrade success dialog
      */
     private void showUpdateSuccess() {
-        sWorkHandleLocked = true;
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
         builder.setTitle(R.string.upgrade_title);
         builder.setMessage(R.string.upgrade_success_message);
@@ -686,7 +686,6 @@ public class UpdateService extends Service {
         mMainHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                sWorkHandleLocked = false;
                 dialog.dismiss();
             }
         }, 5000);
@@ -696,14 +695,12 @@ public class UpdateService extends Service {
      * Upgrade failed dialog
      */
     private void showUpdateFailed() {
-        sWorkHandleLocked = true;
         AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
         builder.setTitle(R.string.upgrade_title);
         builder.setMessage(R.string.upgrade_failed_message);
         builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                sWorkHandleLocked = false;
                 dialog.dismiss();
             }
         });
@@ -716,7 +713,6 @@ public class UpdateService extends Service {
         mMainHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                sWorkHandleLocked = false;
                 dialog.dismiss();
             }
         }, 5000);
@@ -764,7 +760,7 @@ public class UpdateService extends Service {
                         String lastPath = param.substring(param.indexOf('=') + 1);
                         Log.i(TAG, "checkUpdateFlag, lastPath=" + lastPath);
 
-                        if (lastPath.startsWith(AppUtils.getRootDir(this))) {
+                        if (lastPath.startsWith(AppUtils.getExternalRootDir(this))) {
                             deletePackage(lastPath);
                         }
                     }
@@ -822,41 +818,69 @@ public class UpdateService extends Service {
         return str;
     }
 
-    private void install(File[] files) {
-        sWorkHandleLocked = false;
+    private void installNext() {
+        if (mLocalPackageIndex < mLocalPackages.size()) {
+            LocalPackage localPackage = mLocalPackages.get(mLocalPackageIndex);
+            mLocalPackageIndex++;
 
-        for (File file : files) {
-            install(file);
+            if (localPackage.getFile() != null
+                    && localPackage.getFile().exists()) {
+
+                if (localPackage.getType() == LocalPackage.TYPE_APP) {
+                    FileCopyTaskParam param = new FileCopyTaskParam();
+                    param.from = localPackage.getFile();
+                    param.to = new File(AppUtils.getExternalCacheDir(UpdateService.this, "apks")
+                            + File.separator + localPackage.getFile().getName());
+                    param.listener = new FileCopyListener();
+                    new FileCopyTask(this).execute(param);
+
+                } else if (localPackage.getType() == LocalPackage.TYPE_ROM) {
+                    Message msg = new Message();
+                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
+                    Bundle b = new Bundle();
+                    b.putString("path", localPackage.getFile().getAbsolutePath());
+                    msg.setData(b);
+                    mWorkHandler.sendMessage(msg);
+                }
+            } else {
+                installNext();
+            }
+
+        } else {
+            sWorkHandleLocked = false;
         }
     }
 
     private void install(File file) {
         Log.i(TAG, "install, file=" + file.getPath());
 
-        if (file.exists()) {
-            file.setReadable(true, false);
-            file.setWritable(true, false);
-            file.setExecutable(true, false);
-
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                Uri contentUri = FileProvider.getUriForFile(this,
-                        "com.ayst.romupgrade.fileProvider",
-                        file);
-                intent.setDataAndType(contentUri,
-                        "application/vnd.android.package-archive");
-            } else {
-                intent.setDataAndType(Uri.parse("file://" + file.getPath()),
-                        "application/vnd.android.package-archive");
-            }
-
-            startActivity(intent);
+        if (SilentInstall.install(this, file.getAbsolutePath())) {
+            Toast.makeText(this, String.format(
+                    getString(R.string.upgrade_install_success),
+                    file.getName()), Toast.LENGTH_SHORT).show();
         } else {
-            Log.e(TAG, file.getPath() + " not exist!");
+            Toast.makeText(this, String.format(
+                    getString(R.string.upgrade_install_failed),
+                    file.getName()), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private class FileCopyListener implements IFileCopyListener<File> {
+        @Override
+        public void progress(int progress) {
+            //Log.i(TAG, "FileCopyListener, Copy progress: " + progress);
+        }
+
+        @Override
+        public void completed(File file) {
+            Log.i(TAG, "FileCopyListener, Copy " + file.getName() + " completed");
+            install(file);
+            installNext();
+        }
+
+        @Override
+        public void error(Exception e) {
+            Log.e(TAG, "FileCopyListener, Copy error: " + e.getMessage());
         }
     }
 
@@ -895,7 +919,6 @@ public class UpdateService extends Service {
             if (null != mDialog && mDialog.isShowing()) {
                 mDialog.dismiss();
             }
-            sWorkHandleLocked = false;
             Toast.makeText(getApplicationContext(), R.string.upgrade_download_failed_message,
                     Toast.LENGTH_SHORT).show();
         }

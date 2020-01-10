@@ -449,12 +449,12 @@ public class AppUtils {
     }
 
     /**
-     * Get the root storage path
+     * /storage/emulated/0/"packagename"
      *
      * @param context Context
      * @return path
      */
-    public static String getRootDir(Context context) {
+    public static String getExternalRootDir(Context context) {
         if (sRootDir.isEmpty()) {
             File sdcardDir = null;
             try {
@@ -467,7 +467,7 @@ public class AppUtils {
                         String dir = sdcardDir.getAbsolutePath() + File.separator + context.getPackageName();
                         File file = new File(dir);
                         if (!file.exists()) {
-                            Log.i(TAG, "getRootDir, dir not exist and make dir");
+                            Log.i(TAG, "getExternalRootDir, dir not exist and make dir");
                             file.mkdirs();
                         }
                         sRootDir = dir;
@@ -477,23 +477,59 @@ public class AppUtils {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            sRootDir = Environment.getDownloadCacheDirectory().getAbsolutePath();
         }
         return sRootDir;
     }
 
     /**
-     * Get relative storage path
+     * /storage/emulated/0/"packagename"/"dirName"
      *
      * @param context Context
      * @param dirName relative path
      * @return full path
      */
-    public static String getDir(Context context, String dirName) {
-        String dir = getRootDir(context) + File.separator + dirName;
+    public static String getExternalDir(Context context, String dirName) {
+        String dir = getExternalRootDir(context) + File.separator + dirName;
         File file = new File(dir);
         if (!file.exists()) {
             Log.i(TAG, "getDir, dir not exist and make dir");
+            file.mkdirs();
+        }
+        return dir;
+    }
+
+    /**
+     * /storage/emulated/0/Android/data/"packagename"/cache/"dirName"
+     *
+     * @param context Context
+     * @param dirName relative path
+     * @return full path
+     */
+    public static String getExternalCacheDir(Context context, String dirName) {
+        String dir = "";
+        if (isExternalStorageMounted()) {
+            dir = context.getExternalCacheDir().getAbsolutePath() + File.separator + dirName;
+            File file = new File(dir);
+            if (!file.exists()) {
+                Log.i(TAG, "getExternalCacheDir, dir not exist and make dir");
+                file.mkdirs();
+            }
+        }
+        return dir;
+    }
+
+    /**
+     * /data/user/0/"packagename"/cache/"dirName"
+     *
+     * @param context Context
+     * @param dirName relative path
+     * @return full path
+     */
+    public static String getCacheDir(Context context, String dirName) {
+        String dir = context.getCacheDir().getAbsolutePath() + File.separator + dirName;
+        File file = new File(dir);
+        if (!file.exists()) {
+            Log.i(TAG, "getCacheDir, dir not exist and make dir");
             file.mkdirs();
         }
         return dir;
