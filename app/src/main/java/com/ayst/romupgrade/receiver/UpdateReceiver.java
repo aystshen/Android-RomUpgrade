@@ -20,21 +20,13 @@ package com.ayst.romupgrade.receiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
-import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.baidu.otasdk.ota.Constants;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.ayst.romupgrade.App;
-import com.ayst.romupgrade.baidu.NewVersionBean;
 import com.ayst.romupgrade.service.UpdateService;
-import com.ayst.romupgrade.util.AppUtils;
-
-import java.lang.reflect.Type;
-import java.util.List;
 
 /**
  * Listen to the broadcast, start the UpdateService
@@ -53,11 +45,6 @@ public class UpdateReceiver extends BroadcastReceiver {
     private static final String TAG = "UpdateReceiver";
 
     private static int sVolumeState = -1;
-    private static Gson sGson;
-
-    public UpdateReceiver() {
-        sGson = new Gson();
-    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -70,23 +57,16 @@ public class UpdateReceiver extends BroadcastReceiver {
               */
             Log.i(TAG, "onReceive, Boot completed. To check local and remote update.");
             context.startService(buildIntent(context,
-                    UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
+                    UpdateService.COMMAND_INITIAL,
+                    5000));
+
+            context.startService(buildIntent(context,
+                    UpdateService.COMMAND_CHECK_LOCAL_UPDATE,
                     10000));
 
             context.startService(buildIntent(context,
-                    UpdateService.COMMAND_CHECK_REMOTE_UPDATING,
+                    UpdateService.COMMAND_CHECK_REMOTE_UPDATE,
                     25000));
-
-        } else if (TextUtils.equals(ConnectivityManager.CONNECTIVITY_ACTION, action)) {
-            /*
-             Check remote upgrade after connecting to the network.
-              */
-            if (AppUtils.isConnNetWork(context)) {
-                Log.i(TAG, "onReceive, Network is connected. To check remote update.");
-                context.startService(buildIntent(context,
-                        UpdateService.COMMAND_CHECK_REMOTE_UPDATING,
-                        5000));
-            }
 
         } else if (TextUtils.equals(Intent.ACTION_MEDIA_MOUNTED, action)) {
             /*
@@ -94,7 +74,7 @@ public class UpdateReceiver extends BroadcastReceiver {
               */
             Log.i(TAG, "onReceive, Media is mounted. To check local update.");
             context.startService(buildIntent(context,
-                    UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
+                    UpdateService.COMMAND_CHECK_LOCAL_UPDATE,
                     5000));
 
         } else if (TextUtils.equals(UsbManager.ACTION_USB_STATE, action)) {
@@ -111,7 +91,7 @@ public class UpdateReceiver extends BroadcastReceiver {
                 if (!connected && mtpEnabled && !configured) {
                     Log.i(TAG, "onReceive, mtp is enabled. To check local update.");
                     context.startService(buildIntent(context,
-                            UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
+                            UpdateService.COMMAND_CHECK_LOCAL_UPDATE,
                             5000));
                 }
             }
@@ -124,7 +104,7 @@ public class UpdateReceiver extends BroadcastReceiver {
             if (sVolumeState == VolumeInfo.STATE_UNMOUNTED && state == VolumeInfo.STATE_MOUNTED) {
                 Log.i(TAG, "onReceive, Volume is mounted. To check local update.");
                 context.startService(buildIntent(context,
-                        UpdateService.COMMAND_CHECK_LOCAL_UPDATING,
+                        UpdateService.COMMAND_CHECK_LOCAL_UPDATE,
                         5000));
             }
             sVolumeState = state;
@@ -139,19 +119,11 @@ public class UpdateReceiver extends BroadcastReceiver {
 
                 Log.i(TAG, "onReceive, new version infos=" + infos);
                 if (!TextUtils.isEmpty(infos)) {
-                    Type type = new TypeToken<List<NewVersionBean>>() {
-                    }.getType();
-                    List<NewVersionBean> newVersions = sGson.fromJson(infos, type);
-
-                    if (null != newVersions && !newVersions.isEmpty()) {
-                        Intent serviceIntent = buildIntent(context, UpdateService.COMMAND_NEW_VERSION, 0);
-
-                        Bundle bundle = new Bundle();
-                        bundle.putSerializable("new_version", newVersions.get(0));
-                        serviceIntent.putExtra("bundle", bundle);
-
-                        context.startService(serviceIntent);
-                    }
+                    Intent serviceIntent = buildIntent(context, UpdateService.COMMAND_NEW_VERSION, 0);
+                    Bundle bundle = new Bundle();
+                    bundle.putString("infos", infos);
+                    serviceIntent.putExtra("bundle", bundle);
+                    context.startService(serviceIntent);
                 }
             }
         }

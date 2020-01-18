@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.LineNumberReader;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -243,12 +244,42 @@ public class AppUtils {
     }
 
     /**
+     * Get cpu serial
+     *
+     * @return success: cpu serial, failed: "0000000000000000"
+     */
+    public static String getCPUSerial() {
+        String cpuAddress = "0000000000000000";
+
+        try {
+            Process process = Runtime.getRuntime().exec("cat /proc/cpuinfo");
+            InputStreamReader is = new InputStreamReader(process.getInputStream());
+            LineNumberReader input = new LineNumberReader(is);
+
+            String str;
+            while ((str = input.readLine()) != null) {
+                if (!TextUtils.isEmpty(str)) {
+                    if (str.contains("Serial")) {
+                        String cpuStr = str.substring(str.indexOf(":") + 1);
+                        cpuAddress = cpuStr.trim();
+                        break;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "getCPUSerial, " + e.getMessage());
+        }
+
+        return cpuAddress;
+    }
+
+    /**
      * Get device id
      *
      * @return device id
      */
     public static String getDeviceId() {
-        return getSerialNo();
+        return getCPUSerial();
     }
 
     /**

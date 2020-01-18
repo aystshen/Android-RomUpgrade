@@ -9,6 +9,9 @@ import com.liulishuo.filedownloader.FileDownloader;
 import com.ayst.romupgrade.baidu.SystemInfo;
 import com.ayst.romupgrade.util.AppUtils;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Created by ayst.shen@foxmail.com on 2017/12/13.
  */
@@ -29,19 +32,32 @@ public class App extends OtaApplication {
     public void onCreate() {
         super.onCreate();
 
+        Log.i(TAG, "onCreate...");
+
         FileDownloader.setup(this);
     }
 
     /**
      * Initialize Baidu otasdk
+     *
      * @param otaSdkHelper
      */
     @Override
     protected void initService(IOtaSdkHelper otaSdkHelper) {
         otaSdkHelper.init(AppUtils.getDeviceId(), new SystemInfo());
         otaSdkHelper.setUpgradePath(AppUtils.getExternalDir(this, "upgrade"));
+        otaSdkHelper.setExtOption(16, AppUtils.getExternalCacheDir(App.this, "apks"));
         otaSdkHelper.setAutoCheck(true);
         otaSdkHelper.setSilentUpgradeTime("00:00", "24:00");
+
+        // Initialize preset app array.
+        String presetStr = AppUtils.getProperty("ro.baidu.presetapp", "");
+        List<String> presetList = Arrays.asList(presetStr.split(","));
+        otaSdkHelper.presetAppNames(presetList);
+
+        for(String app : presetList) {
+            Log.i(TAG, "initService, preset app: " + app);
+        }
 
         // Read the id and secret of different products from the property.
         sProductId = AppUtils.getProperty("ro.baidu.product.id", sProductId);

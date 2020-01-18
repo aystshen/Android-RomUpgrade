@@ -3,10 +3,16 @@ package com.ayst.romupgrade.service;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Type;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.Service;
@@ -14,7 +20,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.ConnectivityManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,16 +35,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.ProgressBar;
+import android.widget.ListView;
 import android.widget.Toast;
 
+import androidx.documentfile.provider.DocumentFile;
+
+import com.ayst.romupgrade.adapter.DownloadAdapter;
+import com.ayst.romupgrade.entity.InstallProgress;
 import com.ayst.romupgrade.entity.LocalPackage;
 import com.ayst.romupgrade.util.SilentInstall;
-import com.ayst.romupgrade.util.filecopy.FileCopyTask;
-import com.ayst.romupgrade.util.filecopy.FileCopyTaskParam;
-import com.ayst.romupgrade.util.filecopy.IFileCopyListener;
+import com.baidu.commonlib.interfaces.ICheckUpdateListener;
 import com.baidu.commonlib.interfaces.IDownloadListener;
-import com.baidu.commonlib.interfaces.IUpgradeInterface;
 import com.baidu.commonlib.interfaces.IUpgradeListener;
 import com.baidu.otasdk.ota.Constants;
 import com.ayst.romupgrade.App;
@@ -49,82 +55,106 @@ import com.ayst.romupgrade.config.UsbConfigManager;
 import com.ayst.romupgrade.receiver.UpdateReceiver;
 import com.ayst.romupgrade.util.AppUtils;
 import com.ayst.romupgrade.util.FileUtils;
+import com.baidu.otasdk.ota.DefaultUpgradeImpl;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 
 public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
 
     /**
-     * Command
+     * 命令
+     * <p>
+     * COMMAND_NULL                    无效命令
+     * COMMAND_INITIAL                 初始化Service
+     * COMMAND_CHECK_LOCAL_UPDATE      检查本地升级
+     * COMMAND_CHECK_REMOTE_UPDATE     检查在线升级
+     * COMMAND_NEW_VERSION             百度升级新版本
      */
     public static final int COMMAND_NULL = 0;
-    public static final int COMMAND_CHECK_LOCAL_UPDATING = 1;
-    public static final int COMMAND_CHECK_REMOTE_UPDATING = 2;
-    public static final int COMMAND_NEW_VERSION = 3;
-    public static final int COMMAND_VERIFY_UPDATE_PACKAGE = 4;
+    public static final int COMMAND_INITIAL = 1;
+    public static final int COMMAND_CHECK_LOCAL_UPDATE = 2;
+    public static final int COMMAND_CHECK_REMOTE_UPDATE = 3;
+    public static final int COMMAND_NEW_VERSION = 4;
 
     /**
-     * Local upgrade type
+     * 本地升级类型
+     * <p>
+     * 推荐升级：弹窗提示
+     * 静默升级：不弹窗，直接安装升级包
      */
     public static final int UPDATE_TYPE_RECOMMEND = 1;
     public static final int UPDATE_TYPE_SILENT = 2;
 
     /**
-     * USB config filename
-     */
-    public static final String USB_CONFIG_FILENAME = "config.ini";
-
-    /**
-     * APP local update path
+     * 本地升级目录
+     * <p>
+     * u盘中新建此目录，将待安装app或系统ota包复制到此目录下，插入u盘将弹出升级提示
      */
     public static String LOCAL_UPDATE_PATH = "exupdate";
 
     /**
-     * Local upgrade package search path
+     * 本地升级配置文件名
+     *
+     * 在u盘{@link #LOCAL_UPDATE_PATH}路径下创建此配置文件，内容如下：
+     *
+     *      #升级类型，1：推荐升级，2：静默升级
+     *      UPDATE_TYPE=2
+     */
+    public static final String USB_CONFIG_FILENAME = "config.ini";
+
+    /**
+     * 本地系统升级ota包名
+     * <p>
+     * 将ota包复制到u盘{@link #LOCAL_UPDATE_PATH}路径下，并重命名为此文件名，插入u盘将弹出升级提示
+     */
+    public static final String ROM_OTA_PACKAGE_FILENAME = "update.zip";
+
+    /**
+     * 安装系统升级包时，替换路径，否则recovery中无法识别
      */
     public static final String DATA_ROOT = "/data/media/0";
     public static final String FLASH_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath();
-    public static final String SDCARD_ROOT = "/mnt/external_sd";
-    public static final String USB_ROOT = "/mnt/usb_storage";
-    public static final String USB_ROOT_M = "/mnt/media_rw";
-    public static final String CACHE_ROOT = Environment.getDownloadCacheDirectory().getAbsolutePath();
-    private static final String[] PACKAGE_FILE_DIRS = {
-            DATA_ROOT + "/",
-            FLASH_ROOT + "/",
-            SDCARD_ROOT + "/",
-            USB_ROOT + "/",
-    };
 
     /**
-     * Recovery upgrade status storage file
+     * 保存系统升级状态文件
      */
     private static final String RECOVERY_DIR = "/cache/recovery";
     private static final File UPDATE_FLAG_FILE = new File(RECOVERY_DIR + "/last_flag");
     private static final File OTHER_FLAG_FILE = new File(RECOVERY_DIR + "/last_other_flag");
 
     /**
-     * Recovery upgrade result
+     * 系统升级结果
      */
     private static final String COMMAND_FLAG_SUCCESS = "success";
     private static final String COMMAND_FLAG_UPDATING = "updating";
 
-    /**
-     * Upgrade package file name
-     */
-    public static String sOtaPackageName = "update.zip";
-
     private static volatile boolean sWorkHandleLocked = false;
     private static volatile boolean isFirstStartUp = true;
 
+    private static Gson sGson;
+
     private Context mContext;
     private WorkHandler mWorkHandler;
-    private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
     private UpdateReceiver mMediaMountReceiver;
     private Dialog mDialog;
-    private ProgressBar mDownloadPgr;
+    private ListView mDownloadLv;
+    private DownloadAdapter mDownloadAdapter;
 
     private int mLocalPackageIndex = 0;
     private List<LocalPackage> mLocalPackages = new ArrayList<>();
+
+    private HashMap<String, InstallProgress> mInstallProgresses = new HashMap<>();
 
     @Override
     public IBinder onBind(Intent arg0) {
@@ -135,18 +165,19 @@ public class UpdateService extends Service {
 
     public class LocalBinder extends Binder {
         /**
-         * Install package
+         * 安装系统升级包
          *
-         * @param packagePath
+         * @param file 系统升级包
          */
-        void installPackage(String packagePath) {
+        boolean installPackage(File file) {
             try {
+                String packagePath = file.getAbsolutePath();
+
+                // 保存升级前状态
                 saveUpdateFlag(packagePath);
 
-                /*
-                 * For Android 5.1 and above, replace /storage/emulated/0 with /data/media/0,
-                 * otherwise the recovery will not be accessible.
-                 */
+                // Android 5.1 以上版本，将 /storage/emulated/0 路径替换为 /data/media/0,
+                // 否则recovery中将无法访问。
                 String newPackagePath = packagePath;
                 if (packagePath.startsWith(FLASH_ROOT)
                         && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
@@ -159,43 +190,45 @@ public class UpdateService extends Service {
             } catch (IOException e) {
                 Log.e(TAG, "installPackage, failed: " + e);
                 sWorkHandleLocked = false;
+                return false;
             }
+
+            return true;
         }
 
         /**
-         * Verify package
+         * 验证系统升级包有效性
          *
-         * @param packagePath
-         * @return
+         * @param file 系统升级包路径
+         * @return true：有效，false：无效
          */
-        boolean verifyPackage(String packagePath) {
-            Log.i(TAG, "verifyPackage, path: " + packagePath);
+        boolean verifyPackage(File file) {
+            Log.i(TAG, "verifyPackage, path: " + file);
 
             try {
-                RecoverySystem.verifyPackage(new File(packagePath), null, null);
+                RecoverySystem.verifyPackage(file, null, null);
             } catch (GeneralSecurityException e) {
-                Log.i(TAG, "verifyPackage, failed: " + e);
+                Log.e(TAG, "verifyPackage, failed: " + e);
                 return false;
             } catch (IOException e) {
-                Log.i(TAG, "verifyPackage, failed: " + e);
+                Log.e(TAG, "verifyPackage, failed: " + e);
                 return false;
             }
             return true;
         }
 
         /**
-         * Delete package
+         * 删除系统升级包
          *
-         * @param packagePath
+         * @param file 系统升级包
          */
-        void deletePackage(String packagePath) {
+        void deletePackage(File file) {
             Log.i(TAG, "deletePackage, try to delete package");
 
-            File f = new File(packagePath);
-            if (f.exists()) {
-                f.delete();
+            if (file.exists()) {
+                file.delete();
             } else {
-                Log.i(TAG, "deletePackage, path: " + packagePath + ", file not exists!");
+                Log.w(TAG, "deletePackage, path: " + file.getAbsolutePath() + ", file not exists!");
             }
         }
     }
@@ -207,24 +240,15 @@ public class UpdateService extends Service {
         Log.i(TAG, "onCreate...");
 
         mContext = this;
+        sGson = new Gson();
 
-        // Configure Baidu otasdk custom upgrade interface
-        App.getOtaAgent().setCustomUpgrade(new CustomUpgradeInterface());
-
-        String otaPackageFileName = getOtaPackageFileName();
-        if (!TextUtils.isEmpty(otaPackageFileName)) {
-            sOtaPackageName = otaPackageFileName;
-            Log.i(TAG, "onCreate, get ota package name is: " + otaPackageFileName);
-        }
-
-        mMainHandler = new Handler(Looper.getMainLooper());
         HandlerThread workThread = new HandlerThread("UpdateService: workThread");
         workThread.start();
         mWorkHandler = new WorkHandler(workThread.getLooper());
 
         mUpdateReceiver = new UpdateReceiver();
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+//        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         intentFilter.addAction(UpdateReceiver.UsbManager.ACTION_USB_STATE);
         intentFilter.addAction(UpdateReceiver.VolumeInfo.ACTION_VOLUME_STATE_CHANGED);
         intentFilter.addAction(Constants.BROADCAST_NEWVERSION); // For Baidu otasdk
@@ -275,16 +299,29 @@ public class UpdateService extends Service {
         return Service.START_REDELIVER_INTENT;
     }
 
+    /**
+     * 运行在子线程中的Handler，执行外部触发的命令
+     */
     private class WorkHandler extends Handler {
         WorkHandler(Looper looper) {
             super(looper);
         }
 
         public void handleMessage(Message msg) {
-            String path = "";
             switch (msg.what) {
-                case COMMAND_CHECK_LOCAL_UPDATING:
-                    Log.i(TAG, "WorkHandler, COMMAND_CHECK_LOCAL_UPDATING");
+                case COMMAND_INITIAL:
+                    Log.i(TAG, "WorkHandler, COMMAND_INITIAL");
+                    if (App.getOtaAgent() != null) {
+                        // 配置百度自定义升级安装接口
+                        App.getOtaAgent().setCustomUpgrade(new CustomUpgradeInterface(
+                                mContext, App.getProductId()));
+                    } else {
+                        Log.e(TAG, "WorkHandler, IOtaAgent is null");
+                    }
+                    break;
+
+                case COMMAND_CHECK_LOCAL_UPDATE:
+                    Log.i(TAG, "WorkHandler, COMMAND_CHECK_LOCAL_UPDATE");
                     if (sWorkHandleLocked) {
                         Log.i(TAG, "WorkHandler, locked !!!");
                         return;
@@ -293,15 +330,17 @@ public class UpdateService extends Service {
                     checkLocalUpdate();
                     break;
 
-                case COMMAND_CHECK_REMOTE_UPDATING:
-                    Log.i(TAG, "WorkHandler, COMMAND_CHECK_REMOTE_UPDATING");
+                case COMMAND_CHECK_REMOTE_UPDATE:
+                    Log.i(TAG, "WorkHandler, COMMAND_CHECK_REMOTE_UPDATE");
                     if (sWorkHandleLocked) {
                         Log.i(TAG, "WorkHandler, locked !!!");
                         return;
                     }
 
-                    if (AppUtils.isConnNetWork(getApplicationContext())) {
-                        //TODO
+                    if (AppUtils.isConnNetWork(mContext)) {
+                        if (App.getOtaAgent() != null) {
+                            App.getOtaAgent().checkUpdate(true, new CheckUpdateListener());
+                        }
                     } else {
                         Log.e(TAG, "WorkHandler, network is disconnect!");
                     }
@@ -316,19 +355,7 @@ public class UpdateService extends Service {
 
                     Bundle bundle = (Bundle) msg.obj;
                     if (null != bundle) {
-                        showNewVersion((NewVersionBean) bundle.getSerializable("new_version"));
-                    }
-                    break;
-
-                case COMMAND_VERIFY_UPDATE_PACKAGE:
-                    Log.i(TAG, "WorkHandler, COMMAND_VERIFY_UPDATE_PACKAGE");
-                    Bundle b = msg.getData();
-                    path = b.getString("path");
-                    if (mBinder.verifyPackage(path)) {
-                        mBinder.installPackage(path);
-                    } else {
-                        Log.e(TAG, path + " verify failed!");
-                        showInvalidPackage(path);
+                        parseBaiduNewVersion(bundle.getString("infos"));
                     }
                     break;
 
@@ -339,7 +366,28 @@ public class UpdateService extends Service {
     }
 
     /**
-     * Check local update (apk and rom)
+     * 解析百度升级信息
+     *
+     * @param jsonList 百度升级json列表
+     */
+    private void parseBaiduNewVersion(String jsonList) {
+        if (!TextUtils.isEmpty(jsonList)) {
+            Type type = new TypeToken<List<NewVersionBean>>() {
+            }.getType();
+            List<NewVersionBean> newVersions = sGson.fromJson(jsonList, type);
+
+            if (null != newVersions && !newVersions.isEmpty()) {
+                sWorkHandleLocked = true;
+                showNewVersion(newVersions);
+            }
+        }
+    }
+
+    /**
+     * 检查本地升级
+     * <p>
+     * 系统升级包：根目录下的 update.zip 文件
+     * 应用升级包：exupdate 目录下的apk文件
      */
     private void checkLocalUpdate() {
         mLocalPackageIndex = 0;
@@ -372,7 +420,7 @@ public class UpdateService extends Service {
                             updateType = new UsbConfigManager(this, configFile).getUpdateType();
                         }
 
-                        File otaFile = new File(file, sOtaPackageName);
+                        File otaFile = new File(file, ROM_OTA_PACKAGE_FILENAME);
                         if (otaFile.exists()) {
                             mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
                         }
@@ -385,343 +433,21 @@ public class UpdateService extends Service {
                     Log.i(TAG, "checkLocalUpdate, found: " + localPackage.toString());
                 }
 
-                showNewVersion(updateType);
+                sWorkHandleLocked = true;
+                if (UPDATE_TYPE_SILENT == updateType) {
+                    installLocalNext();
+                } else {
+                    showNewVersion();
+                }
                 break;
             }
         }
     }
 
     /**
-     * Local new version dialog
-     */
-    private void showNewVersion(int updateType) {
-        sWorkHandleLocked = true;
-
-        StringBuilder sb = new StringBuilder();
-        for (LocalPackage localPackage : mLocalPackages) {
-            sb.append(localPackage.getFile().getName()).append("\n");
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle(R.string.upgrade_title);
-
-        if (UPDATE_TYPE_SILENT == updateType) {
-            builder.setMessage(getString(R.string.upgrade_message_force) + sb.toString());
-        } else {
-            builder.setMessage(getString(R.string.upgrade_message) + sb.toString());
-            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    installNext();
-                    dialog.dismiss();
-                }
-            });
-            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int i) {
-                    sWorkHandleLocked = false;
-                    dialog.dismiss();
-                }
-            });
-        }
-
-        final Dialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-
-        if (UPDATE_TYPE_SILENT == updateType) {
-            mWorkHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    installNext();
-                    dialog.dismiss();
-                }
-            }, 5000);
-        }
-    }
-
-    /**
-     * Local new version dialog
+     * 保存升级标志，用于系统升级完成后判别升级结果
      *
-     * @param path rom ota package
-     */
-    private void showNewVersion(final String path) {
-        if (!TextUtils.isEmpty(path)) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle(R.string.upgrade_title);
-            builder.setMessage(getString(R.string.upgrade_message) + path);
-            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    // Notification verification upgrade package
-                    Message msg = new Message();
-                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                    Bundle b = new Bundle();
-                    b.putString("path", path);
-                    msg.setData(b);
-                    mWorkHandler.sendMessage(msg);
-
-                    dialog.dismiss();
-                }
-            });
-            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int i) {
-                    dialog.dismiss();
-                }
-            });
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
-
-            mDialog = dialog;
-        }
-    }
-
-    /**
-     * Local new version dialog for forced upgrade
-     *
-     * @param path
-     */
-    private void showNewVersionOfForce(final String path) {
-        if (!TextUtils.isEmpty(path)) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle(R.string.upgrade_title);
-            builder.setMessage(getString(R.string.upgrade_message_force) + path);
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
-            mDialog = dialog;
-
-            mMainHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    // Notification verification upgrade package
-                    Message msg = new Message();
-                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                    Bundle b = new Bundle();
-                    b.putString("path", path);
-                    msg.setData(b);
-                    mWorkHandler.sendMessage(msg);
-
-                    dialog.dismiss();
-                }
-            }, 5000);
-        }
-    }
-
-    /**
-     * OTA Upgrade new version dialog for baidu
-     *
-     * @param newVersion NewVersionBean
-     */
-    private void showNewVersion(final NewVersionBean newVersion) {
-        if (null != newVersion) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle(R.string.upgrade_title);
-            builder.setMessage(getString(R.string.upgrade_message)
-                    + getString(R.string.upgrade_version) + newVersion.getVersion()
-                    + "\n" + newVersion.getInfo());
-            builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    showDownloading();
-                    dialog.dismiss();
-
-                    // Download by Baidu
-                    App.getOtaAgent().downLoad(newVersion.getPackageX(), new DownloadListener());
-                }
-            });
-            builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int i) {
-                    dialog.dismiss();
-                }
-            });
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
-
-            mDialog = dialog;
-        }
-    }
-
-    /**
-     * Download progress dialog
-     */
-    private void showDownloading() {
-        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View view = inflater.inflate(R.layout.layout_download, null);
-        mDownloadPgr = (ProgressBar) view.findViewById(R.id.pgr_download);
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle(R.string.upgrade_title);
-        builder.setMessage(R.string.upgrade_downloading_message);
-        builder.setView(view);
-        builder.setPositiveButton(R.string.hide, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int i) {
-                // Abort download
-                App.getOtaAgent().downLoadAbortAll();
-                dialog.dismiss();
-            }
-        });
-        final Dialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-
-        mDialog = dialog;
-    }
-
-    /**
-     * Download completion dialog
-     *
-     * @param pkgName package name
-     */
-    private void showDownloaded(final String pkgName) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle(R.string.upgrade_title);
-        builder.setMessage(R.string.upgrade_downloaded_message);
-        builder.setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // install package
-                App.getOtaAgent().upgrade(pkgName, null);
-                dialog.dismiss();
-            }
-        });
-        builder.setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int i) {
-                dialog.dismiss();
-            }
-        });
-        final Dialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-
-        mDialog = dialog;
-    }
-
-    /**
-     * Upgrade package verification failure dialog
-     *
-     * @param path
-     */
-    private void showInvalidPackage(final String path) {
-        if (!TextUtils.isEmpty(path)) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-            builder.setTitle(R.string.upgrade_title);
-            builder.setMessage(getString(R.string.upgrade_invalid_package_message) + path);
-            builder.setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    // Notification verification upgrade package
-                    Message msg = new Message();
-                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                    Bundle b = new Bundle();
-                    b.putString("path", path);
-                    msg.setData(b);
-                    mWorkHandler.sendMessage(msg);
-
-                    dialog.dismiss();
-                }
-            });
-            builder.setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int i) {
-                    sWorkHandleLocked = false;
-                    deletePackage(path);
-                    dialog.dismiss();
-                }
-            });
-            final Dialog dialog = builder.create();
-            dialog.setCancelable(false);
-            dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-            dialog.show();
-            mDialog = dialog;
-
-            mMainHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    sWorkHandleLocked = false;
-                    deletePackage(path);
-                    dialog.dismiss();
-                }
-            }, 15000);
-        }
-    }
-
-    /**
-     * Upgrade success dialog
-     */
-    private void showUpdateSuccess() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle(R.string.upgrade_title);
-        builder.setMessage(R.string.upgrade_success_message);
-        builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-        final Dialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-        mDialog = dialog;
-
-        mMainHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                dialog.dismiss();
-            }
-        }, 5000);
-    }
-
-    /**
-     * Upgrade failed dialog
-     */
-    private void showUpdateFailed() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getApplicationContext());
-        builder.setTitle(R.string.upgrade_title);
-        builder.setMessage(R.string.upgrade_failed_message);
-        builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-        final Dialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-        mDialog = dialog;
-
-        mMainHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                dialog.dismiss();
-            }
-        }, 5000);
-    }
-
-    /**
-     * Save the flag to check the upgrade result after the upgrade is complete.
-     *
-     * @param packagePath package file
+     * @param packagePath 系统升级包路径
      * @throws IOException
      */
     private void saveUpdateFlag(String packagePath)
@@ -736,7 +462,7 @@ public class UpdateService extends Service {
     }
 
     /**
-     * After the upgrade is complete, check the upgrade results.
+     * 检查升级标志，用于系统升级完成后判别升级结果
      */
     private void checkUpdateFlag() {
         if (isFirstStartUp) {
@@ -744,7 +470,7 @@ public class UpdateService extends Service {
 
             isFirstStartUp = false;
 
-            // Check the other flag
+            // 检查 last_other_flag
             String flag = null;
             try {
                 flag = FileUtils.readFile(OTHER_FLAG_FILE);
@@ -761,14 +487,14 @@ public class UpdateService extends Service {
                         Log.i(TAG, "checkUpdateFlag, lastPath=" + lastPath);
 
                         if (lastPath.startsWith(AppUtils.getExternalRootDir(this))) {
-                            deletePackage(lastPath);
+                            deletePackage(new File(lastPath));
                         }
                     }
                     OTHER_FLAG_FILE.delete();
                 }
             }
 
-            // Check the upgrade flag
+            // 检查 last_flag
             flag = null;
             try {
                 flag = FileUtils.readFile(UPDATE_FLAG_FILE);
@@ -781,9 +507,9 @@ public class UpdateService extends Service {
                 String[] array = flag.split("\\$");
                 if (array.length == 2) {
                     if (TextUtils.equals(COMMAND_FLAG_SUCCESS, array[0])) {
-                        showUpdateSuccess();
+                        showUpgradeSuccess();
                     } else if (TextUtils.equals(COMMAND_FLAG_UPDATING, array[0])) {
-                        showUpdateFailed();
+                        showUpgradeFailed();
                     }
                 }
                 UPDATE_FLAG_FILE.delete();
@@ -792,33 +518,47 @@ public class UpdateService extends Service {
     }
 
     /**
-     * Delete upgrade package
+     * 删除升级包
      *
-     * @param packagePath package file
+     * @param file 系统升级包
      */
-    private void deletePackage(String packagePath) {
-        File file = new File(packagePath);
+    private void deletePackage(File file) {
         if (file.exists()) {
             file.delete();
-            Log.i(TAG, "deletePackage, path=" + packagePath);
+            Log.i(TAG, "deletePackage, path=" + file.getAbsolutePath());
         }
     }
 
     /**
-     * Configure a new upgrade package name
+     * 文件复制
      *
-     * @return new package name
+     * @param from 源文件
+     * @param to   目标文件
+     * @throws Exception
      */
-    private String getOtaPackageFileName() {
-        String str = AppUtils.getProperty("ro.ota.packagename", "");
-        if (!TextUtils.isEmpty(str) && !str.endsWith(".zip")) {
-            return str + ".zip";
-        }
+    private void copyFile(DocumentFile from, DocumentFile to) throws Exception {
+        InputStream inputStream = getContentResolver().openInputStream(from.getUri());
+        OutputStream outputStream = getContentResolver().openOutputStream(to.getUri());
 
-        return str;
+        if (null != inputStream && null != outputStream) {
+            int count;
+            byte[] bytes = new byte[1024];
+
+            while ((count = inputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, count);
+            }
+
+            outputStream.close();
+            inputStream.close();
+        } else {
+            throw new IOException("InputStream or OutputStream is null");
+        }
     }
 
-    private void installNext() {
+    /**
+     * 依次安装本地升级包（包括应用和系统）
+     */
+    private void installLocalNext() {
         if (mLocalPackageIndex < mLocalPackages.size()) {
             LocalPackage localPackage = mLocalPackages.get(mLocalPackageIndex);
             mLocalPackageIndex++;
@@ -827,23 +567,13 @@ public class UpdateService extends Service {
                     && localPackage.getFile().exists()) {
 
                 if (localPackage.getType() == LocalPackage.TYPE_APP) {
-                    FileCopyTaskParam param = new FileCopyTaskParam();
-                    param.from = localPackage.getFile();
-                    param.to = new File(AppUtils.getExternalCacheDir(UpdateService.this, "apks")
-                            + File.separator + localPackage.getFile().getName());
-                    param.listener = new FileCopyListener();
-                    new FileCopyTask(this).execute(param);
+                    installAppWithCopy(localPackage.getFile());
 
                 } else if (localPackage.getType() == LocalPackage.TYPE_ROM) {
-                    Message msg = new Message();
-                    msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                    Bundle b = new Bundle();
-                    b.putString("path", localPackage.getFile().getAbsolutePath());
-                    msg.setData(b);
-                    mWorkHandler.sendMessage(msg);
+                    installSystem(localPackage.getFile());
                 }
             } else {
-                installNext();
+                installLocalNext();
             }
 
         } else {
@@ -851,41 +581,357 @@ public class UpdateService extends Service {
         }
     }
 
-    private void install(File file) {
-        Log.i(TAG, "install, file=" + file.getPath());
+    /**
+     * 安装u盘中应用（u盘中apk文件无法直接安装，因此需要复制到内部存储空间后再安装）
+     *
+     * @param file 应用
+     */
+    @SuppressLint("CheckResult")
+    private void installAppWithCopy(final File file) {
+        Observable.create(new ObservableOnSubscribe<File>() {
+            @Override
+            public void subscribe(ObservableEmitter<File> emitter) throws Exception {
+                try {
+                    File to = new File(AppUtils.getExternalCacheDir(mContext, "apks")
+                            + File.separator + file.getName());
 
-        if (SilentInstall.install(this, file.getAbsolutePath())) {
-            Toast.makeText(this, String.format(
-                    getString(R.string.upgrade_install_success),
-                    file.getName()), Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, String.format(
-                    getString(R.string.upgrade_install_failed),
-                    file.getName()), Toast.LENGTH_SHORT).show();
-        }
+                    copyFile(DocumentFile.fromFile(file), DocumentFile.fromFile(to));
+
+                    emitter.onNext(to);
+
+                } catch (Exception e) {
+                    emitter.onError(new Throwable(e.getMessage()));
+                }
+            }
+        }).subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .subscribe(new Observer<File>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+
+                    }
+
+                    @Override
+                    public void onNext(File file) {
+                        installApp(file);
+                        installLocalNext();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e(TAG, "installAppWithCopy, e: " + e.getMessage());
+                        installLocalNext();
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
     }
 
-    private class FileCopyListener implements IFileCopyListener<File> {
+    /**
+     * 安装应用
+     *
+     * @param file 应用
+     */
+    @SuppressLint("CheckResult")
+    private void installApp(final File file) {
+        Log.i(TAG, "installApp, file=" + file.getPath());
+
+        Observable.create(new ObservableOnSubscribe<Boolean>() {
+            @Override
+            public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
+                boolean success = SilentInstall.install(UpdateService.this,
+                        file.getAbsolutePath());
+                emitter.onNext(success);
+            }
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean success) throws Exception {
+                        if (success) {
+                            Toast.makeText(UpdateService.this, String.format(
+                                    getString(R.string.upgrade_install_success),
+                                    file.getName()), Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(UpdateService.this, String.format(
+                                    getString(R.string.upgrade_install_failed),
+                                    file.getName()), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * 安装系统升级
+     *
+     * @param file 系统升级包
+     */
+    @SuppressLint("CheckResult")
+    private void installSystem(final File file) {
+        Log.i(TAG, "installSystem, file=" + file.getPath());
+
+        Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                if (mBinder.verifyPackage(file)) {
+                    if (!mBinder.installPackage(file)) {
+                        emitter.onNext(getString(R.string.upgrade_install_failed));
+                    }
+                } else {
+                    emitter.onNext(getString(R.string.upgrade_invalid_package));
+                }
+            }
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<String>() {
+                    @Override
+                    public void accept(String s) throws Exception {
+                        showInstallSystemFail(file, s);
+                    }
+                });
+    }
+
+    /**
+     * 本地升级提示
+     */
+    private void showNewVersion() {
+        StringBuilder sb = new StringBuilder();
+        for (LocalPackage localPackage : mLocalPackages) {
+            sb.append(localPackage.getFile().getName()).append("\n");
+        }
+
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(getString(R.string.upgrade_message) + sb.toString())
+                .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        installLocalNext();
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+    }
+
+    /**
+     * 百度升级提示
+     *
+     * @param newVersions 升级列表
+     */
+    private void showNewVersion(final List<NewVersionBean> newVersions) {
+        mInstallProgresses.clear();
+
+        StringBuilder sb = new StringBuilder();
+        for (NewVersionBean bean : newVersions) {
+            sb.append(bean.getPackageX()).append("(").append(bean.getVersion()).append(")\n");
+            sb.append(bean.getInfo()).append("\n");
+
+            mInstallProgresses.put(bean.getPackageX(), new InstallProgress(bean));
+        }
+
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(getString(R.string.upgrade_message) + sb.toString())
+                .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        showDownloading();
+                        if (App.getOtaAgent() != null) {
+                            App.getOtaAgent().downLoadAll(new DownloadListener());
+                        }
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+    }
+
+    /**
+     * 下载进度
+     */
+    private void showDownloading() {
+        mDownloadAdapter = new DownloadAdapter(this, new ArrayList<>(mInstallProgresses.values()));
+
+        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View view = inflater.inflate(R.layout.layout_download, null);
+        mDownloadLv = (ListView) view.findViewById(R.id.list);
+        mDownloadLv.setAdapter(mDownloadAdapter);
+
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_download)
+                .setView(view)
+                .setPositiveButton(R.string.hide, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        if (App.getOtaAgent() != null) {
+                            App.getOtaAgent().downLoadAbortAll();
+                        }
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        mDialog = dialog;
+    }
+
+    /**
+     * 安装系统升级包失败提示
+     *
+     * @param file    系统升级包
+     * @param message 失败信息
+     */
+    @SuppressLint("CheckResult")
+    private void showInstallSystemFail(final File file, String message) {
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(String.format(message, file.getAbsoluteFile()))
+                .setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        installSystem(file);
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        deletePackage(file);
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        Observable.timer(15000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            sWorkHandleLocked = false;
+                            deletePackage(file);
+                            dialog.dismiss();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * 系统升级成功提示
+     */
+    @SuppressLint("CheckResult")
+    private void showUpgradeSuccess() {
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(R.string.upgrade_success_message)
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        Observable.timer(5000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * 系统升级失败提示
+     */
+    @SuppressLint("CheckResult")
+    private void showUpgradeFailed() {
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(R.string.upgrade_failed_message)
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                }).create();
+
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+
+        Observable.timer(5000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * 百度检查在线升级回调
+     */
+    private class CheckUpdateListener implements ICheckUpdateListener {
+
         @Override
-        public void progress(int progress) {
-            //Log.i(TAG, "FileCopyListener, Copy progress: " + progress);
+        public void onSuccess(String jsonList) {
+            Log.i(TAG, "CheckUpdateListener->onSuccess, jsonList=" + jsonList);
+            parseBaiduNewVersion(jsonList);
         }
 
         @Override
-        public void completed(File file) {
-            Log.i(TAG, "FileCopyListener, Copy " + file.getName() + " completed");
-            install(file);
-            installNext();
-        }
-
-        @Override
-        public void error(Exception e) {
-            Log.e(TAG, "FileCopyListener, Copy error: " + e.getMessage());
+        public void onFail(int errCode, String reason) {
+            Log.w(TAG, "CheckUpdateListener->onFail, errCode=" + errCode + ", reason=" + reason);
         }
     }
 
     /**
-     * Download listener for Baidu
+     * 百度升级包下载回调
      */
     private class DownloadListener implements IDownloadListener {
 
@@ -902,9 +948,14 @@ public class UpdateService extends Service {
         @Override
         public void onProgress(String pkgName, int sofarBytes, int totalBytes) {
             long progress = sofarBytes / (totalBytes / 100);
-            Log.i(TAG, "download->progress, " + sofarBytes
+            Log.i(TAG, "download->progress, package: " + pkgName + " " + sofarBytes
                     + "/" + totalBytes + " " + progress + "%");
-            mDownloadPgr.setProgress((int) progress);
+            InstallProgress item = mInstallProgresses.get(pkgName);
+            if (null != item) {
+                item.setProgress((int) progress);
+                mInstallProgresses.put(pkgName, item);
+                mDownloadAdapter.update(new ArrayList<>(mInstallProgresses.values()));
+            }
         }
 
         @Override
@@ -916,57 +967,105 @@ public class UpdateService extends Service {
         public void onFailed(String pkgName, int errCode, String reason) {
             Log.e(TAG, "DownloadListener, onFailed errCode=" + errCode
                     + " reason=" + reason);
-            if (null != mDialog && mDialog.isShowing()) {
-                mDialog.dismiss();
-            }
-            Toast.makeText(getApplicationContext(), R.string.upgrade_download_failed_message,
-                    Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void onFinished(String pkgName) {
             Log.i(TAG, "download->completed");
-            if (null != mDialog && mDialog.isShowing()) {
+
+            // 标记当前升级包下载完成
+            InstallProgress item = mInstallProgresses.get(pkgName);
+            if (null != item) {
+                item.setProgress(100);
+                item.setDownloaded(true);
+            }
+
+            // 判断全部升级包是否下载完成
+            boolean isAllDownloaded = true;
+            for (InstallProgress install : mInstallProgresses.values()) {
+                if (!install.isDownloaded()) {
+                    isAllDownloaded = false;
+                }
+            }
+
+            // 所有升级包全部下载完成，销毁下载进度对话框
+            if (isAllDownloaded && null != mDialog && mDialog.isShowing()) {
                 mDialog.dismiss();
             }
-            showDownloaded(pkgName);
+
+            if (App.getOtaAgent() != null) {
+                App.getOtaAgent().upgrade(pkgName, new UpgradeListener());
+            }
         }
     }
 
     /**
-     * Custom upgrade interface for Baidu
+     * 百度升级安装回调
      */
-    private class CustomUpgradeInterface implements IUpgradeInterface {
+    private class UpgradeListener implements IUpgradeListener {
 
         @Override
-        public String installPackage(String pkgName, String file, boolean silence) {
-            if (silence) {
-                mMainHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        showNewVersionOfForce(file);
-                    }
-                });
-            } else {
-                Message msg = new Message();
-                msg.what = COMMAND_VERIFY_UPDATE_PACKAGE;
-                Bundle b = new Bundle();
-                b.putString("path", file);
-                msg.setData(b);
-                mWorkHandler.sendMessage(msg);
+        public void onProgress(String s, String s1, int i) {
+
+        }
+
+        @Override
+        public void onFailed(String s, int i, String s1) {
+            sWorkHandleLocked = false;
+        }
+
+        @Override
+        public void onWriteDone(String s) {
+
+        }
+
+        @Override
+        public void onSuccess(String pkgName) {
+            // 标记当前升级包安装完成
+            InstallProgress item = mInstallProgresses.get(pkgName);
+            if (null != item) {
+                item.setInstalled(true);
             }
+
+            // 判断全部升级包是否安装完成
+            boolean isAllInstalled = true;
+            for (InstallProgress install : mInstallProgresses.values()) {
+                if (!install.isInstalled()) {
+                    isAllInstalled = false;
+                }
+            }
+
+            if (isAllInstalled) {
+                Log.i(TAG, "UpgradeListener->onSuccess, All packages are installed.");
+                sWorkHandleLocked = false;
+            }
+        }
+    }
+
+    /**
+     * 自定义百度升级安装接口
+     */
+    private class CustomUpgradeInterface extends DefaultUpgradeImpl {
+
+        CustomUpgradeInterface(Context context, String pid) {
+            super(context, pid);
+        }
+
+        @SuppressLint("CheckResult")
+        @Override
+        protected String installSystem(String pkgName, File file, boolean silence) {
+            Log.i(TAG, "CustomUpgradeInterface->installSystem, pkgName=" + pkgName);
+
+            UpdateService.this.installSystem(file);
 
             return "";
         }
 
         @Override
-        public String unInstallPackage(String pkgName, boolean silence) {
-            return null;
-        }
+        protected void installApp(String pkgName, File file, boolean silence) {
+            Log.i(TAG, "CustomUpgradeInterface->installApp, pkgName=" + pkgName);
 
-        @Override
-        public void setListener(IUpgradeListener listener) {
-
+            UpdateService.this.installApp(file);
         }
     }
 }

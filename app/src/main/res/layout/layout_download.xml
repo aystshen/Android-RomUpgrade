@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp">
 
-    <ProgressBar
-        android:id="@+id/pgr_download"
-        style="?android:attr/progressBarStyleHorizontal"
+    <ListView
+        android:id="@+id/list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingLeft="10dp"
-        android:paddingRight="10dp"
-        android:max="100"
-        android:progress="0" />
+        android:divider="@null"
+        android:clickable="false"/>
 
 </RelativeLayout>
