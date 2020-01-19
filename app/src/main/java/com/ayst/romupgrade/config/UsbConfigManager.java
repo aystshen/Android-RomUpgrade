@@ -1,6 +1,5 @@
 package com.ayst.romupgrade.config;
 
-import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
@@ -17,13 +16,11 @@ public class UsbConfigManager {
 
     public final static String UPDATE_TYPE = "UPDATE_TYPE";
 
-    private Context mContext;
     private File mConfigFile;
     private Properties mCfgProperties = null;
     private int mUpdateType = -1;
 
-    public UsbConfigManager(Context context, File configFile) {
-        mContext = context;
+    public UsbConfigManager(File configFile) {
         mConfigFile = configFile;
         if (mConfigFile.exists()) {
             getProperties();
@@ -46,7 +43,8 @@ public class UsbConfigManager {
 
     /**
      * Get upgrade type
-     * @return 1: recommend upgrade, 2: force upgrade
+     *
+     * @return 1: recommend, 2: silent
      */
     public int getUpdateType() {
         if (-1 == mUpdateType) {

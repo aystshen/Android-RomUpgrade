@@ -76,8 +76,8 @@ public class UpdateService extends Service {
      * <p>
      * COMMAND_NULL                    无效命令
      * COMMAND_INITIAL                 初始化Service
-     * COMMAND_CHECK_LOCAL_UPDATE      检查本地升级
-     * COMMAND_CHECK_REMOTE_UPDATE     检查在线升级
+     * COMMAND_CHECK_LOCAL_UPDATE      查询本地升级
+     * COMMAND_CHECK_REMOTE_UPDATE     查询在线升级
      * COMMAND_NEW_VERSION             百度升级新版本
      */
     public static final int COMMAND_NULL = 0;
@@ -417,7 +417,7 @@ public class UpdateService extends Service {
 
                         File configFile = new File(file, USB_CONFIG_FILENAME);
                         if (configFile.exists()) {
-                            updateType = new UsbConfigManager(this, configFile).getUpdateType();
+                            updateType = new UsbConfigManager(configFile).getUpdateType();
                         }
 
                         File otaFile = new File(file, ROM_OTA_PACKAGE_FILENAME);
@@ -858,7 +858,7 @@ public class UpdateService extends Service {
     private void showUpgradeSuccess() {
         Dialog dialog = new AlertDialog.Builder(getApplicationContext())
                 .setTitle(R.string.upgrade_title)
-                .setMessage(R.string.upgrade_success_message)
+                .setMessage(R.string.upgrade_success)
                 .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -889,7 +889,7 @@ public class UpdateService extends Service {
     private void showUpgradeFailed() {
         Dialog dialog = new AlertDialog.Builder(getApplicationContext())
                 .setTitle(R.string.upgrade_title)
-                .setMessage(R.string.upgrade_failed_message)
+                .setMessage(R.string.upgrade_failed)
                 .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {

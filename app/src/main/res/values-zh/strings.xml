@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Rom升级</string>
+    <string name="app_name">升级</string>
     <string name="hide">隐藏</string>
     <string name="cancel">取消</string>
     <string name="retry">重试</string>
@@ -10,14 +10,9 @@
     <string name="upgrade_download">下载</string>
     <string name="upgrade_ok">立即升级</string>
     <string name="upgrade_cancel">暂不升级</string>
-    <string name="upgrade_version">版本：</string>
     <string name="upgrade_message">"发现新版本，是否升级？\n"</string>
-    <string name="upgrade_message_force">"发现新版本，5秒后将自动升级！\n"</string>
-    <string name="upgrade_downloading_message">正在下载，请稍候…</string>
-    <string name="upgrade_downloaded_message">下载完成，是否升级？</string>
-    <string name="upgrade_success_message">升级成功！</string>
-    <string name="upgrade_failed_message">升级失败！</string>
-    <string name="upgrade_download_failed">下载失败！</string>
+    <string name="upgrade_success">升级成功！</string>
+    <string name="upgrade_failed">升级失败！</string>
     <string name="upgrade_install_success">%1$s 安装成功！</string>
     <string name="upgrade_install_failed">%1$s 安装失败！</string>
     <string name="upgrade_invalid_package">"%1$s 无效的升级包！"</string>

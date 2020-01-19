@@ -46,4 +46,14 @@ public class InstallProgress {
     public void setInstalled(boolean installed) {
         isInstalled = installed;
     }
+
+    @Override
+    public String toString() {
+        return "InstallProgress{" +
+                "info=" + info.toString() +
+                ", progress=" + progress +
+                ", isDownloaded=" + isDownloaded +
+                ", isInstalled=" + isInstalled +
+                '}';
+    }
 }

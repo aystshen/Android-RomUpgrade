@@ -2,7 +2,6 @@ package com.ayst.romupgrade.adapter;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,7 +12,6 @@ import android.widget.TextView;
 import com.ayst.romupgrade.R;
 import com.ayst.romupgrade.entity.InstallProgress;
 
-import java.util.Collection;
 import java.util.List;
 
 public class DownloadAdapter extends BaseAdapter {

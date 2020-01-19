@@ -6,8 +6,8 @@ public class LocalPackage {
     public static final int TYPE_APP = 0;
     public static final int TYPE_ROM = 1;
 
-    int type;
-    File file;
+    private int type;
+    private File file;
 
     public LocalPackage(int type, File file) {
         this.type = type;
