@@ -36,7 +36,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -56,6 +55,7 @@ import android.widget.Toast;
 
 import androidx.documentfile.provider.DocumentFile;
 
+import com.ayst.romupgrade.IRomUpgradeService;
 import com.ayst.romupgrade.adapter.DownloadAdapter;
 import com.ayst.romupgrade.entity.InstallProgress;
 import com.ayst.romupgrade.entity.LocalPackage;
@@ -174,21 +174,17 @@ public class UpdateService extends Service {
 
     @Override
     public IBinder onBind(Intent arg0) {
-        return mBinder;
+        return mService;
     }
 
-    private final LocalBinder mBinder = new LocalBinder();
-
-    public class LocalBinder extends Binder {
+    private final IRomUpgradeService.Stub mService = new IRomUpgradeService.Stub() {
         /**
          * 安装系统升级包
          *
-         * @param file 系统升级包
+         * @param packagePath 系统升级包
          */
-        boolean installPackage(File file) {
+        public boolean installPackage(String packagePath) {
             try {
-                String packagePath = file.getAbsolutePath();
-
                 // 保存升级前状态
                 saveUpdateFlag(packagePath);
 
@@ -215,14 +211,14 @@ public class UpdateService extends Service {
         /**
          * 验证系统升级包有效性
          *
-         * @param file 系统升级包路径
+         * @param packagePath 系统升级包路径
          * @return true：有效，false：无效
          */
-        boolean verifyPackage(File file) {
-            Log.i(TAG, "verifyPackage, path: " + file);
+        public boolean verifyPackage(String packagePath) {
+            Log.i(TAG, "verifyPackage, path: " + packagePath);
 
             try {
-                RecoverySystem.verifyPackage(file, null, null);
+                RecoverySystem.verifyPackage(new File(packagePath), null, null);
             } catch (GeneralSecurityException e) {
                 Log.e(TAG, "verifyPackage, failed: " + e);
                 return false;
@@ -236,18 +232,19 @@ public class UpdateService extends Service {
         /**
          * 删除系统升级包
          *
-         * @param file 系统升级包
+         * @param packagePath 系统升级包
          */
-        void deletePackage(File file) {
+        public void deletePackage(String packagePath) {
             Log.i(TAG, "deletePackage, try to delete package");
 
+            File file = new File(packagePath);
             if (file.exists()) {
                 file.delete();
             } else {
-                Log.w(TAG, "deletePackage, path: " + file.getAbsolutePath() + ", file not exists!");
+                Log.w(TAG, "deletePackage, path: " + packagePath + ", file not exists!");
             }
         }
-    }
+    };
 
     @Override
     public void onCreate() {
@@ -692,8 +689,8 @@ public class UpdateService extends Service {
         Observable.create(new ObservableOnSubscribe<String>() {
             @Override
             public void subscribe(ObservableEmitter<String> emitter) throws Exception {
-                if (mBinder.verifyPackage(file)) {
-                    if (!mBinder.installPackage(file)) {
+                if (mService.verifyPackage(file.getAbsolutePath())) {
+                    if (!mService.installPackage(file.getAbsolutePath())) {
                         emitter.onNext(getString(R.string.upgrade_install_failed));
                     }
                 } else {

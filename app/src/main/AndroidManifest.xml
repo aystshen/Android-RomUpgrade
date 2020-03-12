@@ -49,7 +49,11 @@
         <service
             android:name="com.ayst.romupgrade.service.UpdateService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="com.ayst.romupgrade.UPGRADE_SERVICE" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name="com.ayst.romupgrade.receiver.UpdateReceiver"
