@@ -120,11 +120,11 @@ public class UpdateService extends Service {
 
     /**
      * 本地升级配置文件名
-     *
+     * <p>
      * 在u盘{@link #LOCAL_UPDATE_PATH}路径下创建此配置文件，内容如下：
-     *
-     *      #升级类型，1：推荐升级，2：静默升级
-     *      UPDATE_TYPE=2
+     * <p>
+     * #升级类型，1：推荐升级，2：静默升级
+     * UPDATE_TYPE=2
      */
     public static final String USB_CONFIG_FILENAME = "config.ini";
 
@@ -140,6 +140,29 @@ public class UpdateService extends Service {
      */
     public static final String DATA_ROOT = "/data/media/0";
     public static final String FLASH_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath();
+
+    /**
+     * 本地升级包检查内部路径(sdcard)，只检查根目录
+     * 例：/data/media/0/{@link LOCAL_UPDATE_PATH}
+     * <p>
+     * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
+     */
+    private static final String[] INTERNAL_DIRS = {
+            DATA_ROOT,
+            FLASH_ROOT,
+            "/mnt/external_sd"
+    };
+
+    /**
+     * 本地升级包检查外部路径（usb），检查二级子目录
+     * 例：/mnt/media_rw/6ABF-0AD3/{@link LOCAL_UPDATE_PATH}
+     * <p>
+     * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
+     */
+    private static final String[] EXTERNAL_DIRS = {
+            "/mnt/usb_storage",
+            "/mnt/media_rw"
+    };
 
     /**
      * 保存系统升级状态文件
@@ -168,6 +191,7 @@ public class UpdateService extends Service {
     private DownloadAdapter mDownloadAdapter;
 
     private int mLocalPackageIndex = 0;
+    private int mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
     private List<LocalPackage> mLocalPackages = new ArrayList<>();
 
     private HashMap<String, InstallProgress> mInstallProgresses = new HashMap<>();
@@ -403,58 +427,90 @@ public class UpdateService extends Service {
      * 应用升级包：exupdate 目录下的apk文件
      */
     private void checkLocalUpdate() {
+        mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
         mLocalPackageIndex = 0;
         mLocalPackages.clear();
 
-        List<String> searchPaths = AppUtils.getStorageList(this);
-        for (String dirPath : searchPaths) {
-            Log.i(TAG, "checkLocalUpdate, search: " + dirPath);
+        for (String root : EXTERNAL_DIRS) {
+            Log.i(TAG, "checkLocalUpdate, search external: " + root);
 
-            int updateType = UPDATE_TYPE_RECOMMEND;
-            File dir = new File(dirPath);
-            for (File file : dir.listFiles()) {
+            File rootDir = new File(root);
+            if (null != rootDir.listFiles()) {
+                for (File file : rootDir.listFiles()) {
+                    if (file.isDirectory()) {
+                        loadExupdate(new File(file, LOCAL_UPDATE_PATH));
+                        loadOtaPackage(file);
 
-                if (file.isDirectory()) {
-                    if (TextUtils.equals(file.getName(), LOCAL_UPDATE_PATH)) {
-                        File[] files = file.listFiles(new FileFilter() {
-                            @Override
-                            public boolean accept(File tmpFile) {
-                                return (!tmpFile.isDirectory() && TextUtils.equals(
-                                        FileUtils.getFileSuffix(tmpFile.getName()), "apk"));
-                            }
-                        });
-
-                        for (File apkFile : files) {
-                            mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_APP, apkFile));
-                        }
-
-                        File configFile = new File(file, USB_CONFIG_FILENAME);
-                        if (configFile.exists()) {
-                            updateType = new UsbConfigManager(configFile).getUpdateType();
-                        }
-
-                        File otaFile = new File(file, ROM_OTA_PACKAGE_FILENAME);
-                        if (otaFile.exists()) {
-                            mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
+                        if (!mLocalPackages.isEmpty()) {
+                            break;
                         }
                     }
                 }
             }
+        }
 
-            if (!mLocalPackages.isEmpty()) {
-                for (LocalPackage localPackage : mLocalPackages) {
-                    Log.i(TAG, "checkLocalUpdate, found: " + localPackage.toString());
-                }
+        if (mLocalPackages.isEmpty()) {
+            for (String root : INTERNAL_DIRS) {
+                Log.i(TAG, "checkLocalUpdate, search internal: " + root);
 
-                sWorkHandleLocked = true;
-                if (UPDATE_TYPE_SILENT == updateType) {
-                    installLocalNext();
-                } else {
-                    showNewVersion();
+                File rootDir = new File(root);
+                loadExupdate(new File(rootDir, LOCAL_UPDATE_PATH));
+                loadOtaPackage(rootDir);
+
+                if (!mLocalPackages.isEmpty()) {
+                    break;
                 }
-                break;
             }
         }
+
+        if (!mLocalPackages.isEmpty()) {
+            for (LocalPackage localPackage : mLocalPackages) {
+                Log.i(TAG, "checkLocalUpdate, found: " + localPackage.toString());
+            }
+
+            sWorkHandleLocked = true;
+            if (UPDATE_TYPE_SILENT == mLocalUpdateType) {
+                installLocalNext();
+            } else {
+                showNewVersion();
+            }
+        }
+    }
+
+    private boolean loadOtaPackage(File file) {
+        if (null != file && file.exists() && file.isDirectory()) {
+            File otaFile = new File(file, ROM_OTA_PACKAGE_FILENAME);
+            if (otaFile.exists()) {
+                mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
+            }
+        }
+
+        return !mLocalPackages.isEmpty();
+    }
+
+    private boolean loadExupdate(File file) {
+        if (null != file && file.exists() && file.isDirectory()) {
+            File[] files = file.listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File tmpFile) {
+                    return (!tmpFile.isDirectory() && TextUtils.equals(
+                            FileUtils.getFileSuffix(tmpFile.getName()), "apk"));
+                }
+            });
+
+            if (null != files) {
+                for (File apkFile : files) {
+                    mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_APP, apkFile));
+                }
+            }
+
+            File configFile = new File(file, USB_CONFIG_FILENAME);
+            if (configFile.exists()) {
+                mLocalUpdateType = new UsbConfigManager(configFile).getUpdateType();
+            }
+        }
+
+        return !mLocalPackages.isEmpty();
     }
 
     /**
