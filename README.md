@@ -80,15 +80,14 @@ ro.baidu.presetapp=com.ayst.sample1,com.ayst.sample2
 4. 等待5秒左右，会弹出升级提示对话框，请根据提示完成升级。
 
 #### 本地系统升级
-1. 在tf卡或u盘根目录新建“exupdate”目录。
-2. 将待升级系统ota包复制到“exupdate”目录下，并重命名为“update.zip”。
-3. 插入tf卡或u盘插入Android设备。
-4. 等待5秒左右，会弹出升级提示对话框，请根据提示完成升级。
+1. 将待升级系统ota包复制到tf卡或u盘根目录下，并重命名为“update.zip”。
+2. 插入tf卡或u盘插入Android设备。
+3. 等待5秒左右，会弹出升级提示对话框，请根据提示完成升级。
 
 #### 本地应用与系统同时升级
 1. 在tf卡或u盘根目录新建“exupdate”目录。
 2. 将待安装apk文件复制到“exupdate”目录下。
-3. 将待升级系统ota包复制到“exupdate”目录下，并重命名为“update.zip”。
+3. 将待升级系统ota包复制到tf卡或u盘目录下，并重命名为“update.zip”。
 4. 插入tf卡或u盘插入Android设备。
 5. 等待5秒左右，会弹出升级提示对话框，请根据提示完成升级。
 
