@@ -216,7 +216,7 @@ public class UpdateService extends Service {
                 // 否则recovery中将无法访问。
                 String newPackagePath = packagePath;
                 if (packagePath.startsWith(FLASH_ROOT)
-                        && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
+                        && android.os.Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP_MR1) {
                     newPackagePath = packagePath.replaceAll(FLASH_ROOT, DATA_ROOT);
                 }
 
