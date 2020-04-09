@@ -32,7 +32,7 @@ interface IRomUpgradeService {
 ```
 
 ### API使用
-1. 在 APP 源码 **aidl/android/os/ **目录下新建 **IRomUpgradeService.aidl**，如下：
+1. 在 APP 源码 **aidl/com/ayst/romupgrade/** 目录下新建 **IRomUpgradeService.aidl**，如下：
 ```java
 // IRomUpgradeService.aidl
 package com.ayst.romupgrade;
