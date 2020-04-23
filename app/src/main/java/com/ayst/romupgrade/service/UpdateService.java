@@ -203,6 +203,20 @@ public class UpdateService extends Service {
 
     private final IRomUpgradeService.Stub mService = new IRomUpgradeService.Stub() {
         /**
+         * 检查升级
+         */
+        public void checkUpdate() {
+            Log.i(TAG, "checkUpdate");
+            if (AppUtils.isConnNetWork(mContext)) {
+                if (App.getOtaAgent() != null) {
+                    App.getOtaAgent().checkUpdate(true, new CheckUpdateListener());
+                }
+            } else {
+                Log.e(TAG, "checkUpdate, network is disconnect!");
+            }
+        }
+
+        /**
          * 安装系统升级包
          *
          * @param packagePath 系统升级包
