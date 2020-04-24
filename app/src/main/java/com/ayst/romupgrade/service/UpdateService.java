@@ -59,7 +59,7 @@ import com.ayst.romupgrade.IRomUpgradeService;
 import com.ayst.romupgrade.adapter.DownloadAdapter;
 import com.ayst.romupgrade.entity.InstallProgress;
 import com.ayst.romupgrade.entity.LocalPackage;
-import com.ayst.romupgrade.util.SilentInstall;
+import com.ayst.romupgrade.util.InstallUtil;
 import com.baidu.commonlib.interfaces.ICheckUpdateListener;
 import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeListener;
@@ -725,9 +725,11 @@ public class UpdateService extends Service {
         Observable.create(new ObservableOnSubscribe<Boolean>() {
             @Override
             public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
-                boolean success = SilentInstall.install(UpdateService.this,
-                        file.getAbsolutePath());
-                emitter.onNext(success);
+                if (InstallUtil.installSilent(file.getAbsolutePath())) {
+                    emitter.onNext(true);
+                } else {
+                    InstallUtil.install(UpdateService.this, file.getAbsolutePath());
+                }
             }
         }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())

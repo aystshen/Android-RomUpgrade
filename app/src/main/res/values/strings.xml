@@ -21,6 +21,7 @@
     <string name="retry">Retry</string>
     <string name="confirm">OK</string>
     <string name="delete">Delete</string>
+    <string name="ok">OK</string>
 
     <string name="upgrade_title">Upgrade</string>
     <string name="upgrade_download">Download</string>
@@ -32,5 +33,6 @@
     <string name="upgrade_install_success">%1$s install success!</string>
     <string name="upgrade_install_failed">%1$s install failed!</string>
     <string name="upgrade_invalid_package">%1$s invalid package!</string>
+    <string name="upgrade_unknown_sources_package">To install the application, you need to open the permissions of unknown source. Please go to Settings to open the permissions!</string>
 
 </resources>
