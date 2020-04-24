@@ -55,8 +55,6 @@ public class AppUtils {
 
     private static final String KEY_IS_FIRST = "is_first_run";
 
-    private static final String INVALID_DEVICE_ID = "0000000000000000";
-
     // Application version
     private static String mVersionName = "";
     private static int mVersionCode = -1;
@@ -88,7 +86,7 @@ public class AppUtils {
     private static String sRootDir = "";
 
     // Device id
-    private static String sDeviceId = INVALID_DEVICE_ID;
+    private static String sDeviceId = "";
 
     /**
      * Is first run
@@ -300,11 +298,8 @@ public class AppUtils {
      * @return device id
      */
     public static String getDeviceId() {
-        if (TextUtils.equals(sDeviceId, INVALID_DEVICE_ID)) {
-            sDeviceId = getCPUSerial();
-            if (TextUtils.equals(sDeviceId, INVALID_DEVICE_ID)) {
-                sDeviceId = getSerialNo();
-            }
+        if (TextUtils.isEmpty(sDeviceId)) {
+            sDeviceId = getSerialNo();
         }
 
         return sDeviceId;
