@@ -75,6 +75,7 @@ import com.baidu.otasdk.ota.DefaultUpgradeImpl;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import cn.trinea.android.common.util.ShellUtils;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
@@ -533,15 +534,23 @@ public class UpdateService extends Service {
      * @param packagePath 系统升级包路径
      * @throws IOException
      */
-    private void saveUpdateFlag(String packagePath)
-            throws IOException {
+    private void saveUpdateFlag(String packagePath) {
+        try {
+            /* rockchip平台tf卡烧录后会写cache/recovery/last_flag文件，并且权限为600，
+             * 所以必须通过root权限删除此文件。
+             */
+            ShellUtils.execCommand("rm -rf " + OTHER_FLAG_FILE, true);
+            ShellUtils.execCommand("rm -rf " + UPDATE_FLAG_FILE, true);
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("path=").append(packagePath);
+            StringBuilder sb = new StringBuilder();
+            sb.append("path=").append(packagePath);
 
-        FileUtils.writeFile(OTHER_FLAG_FILE, sb.toString());
+            FileUtils.writeFile(OTHER_FLAG_FILE, sb.toString());
 
-        FileUtils.writeFile(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
+            FileUtils.writeFile(UPDATE_FLAG_FILE, "updating$path=" + packagePath);
+        } catch (IOException e) {
+            Log.e(TAG, "saveUpdateFlag, " + e);
+        }
     }
 
     /**
