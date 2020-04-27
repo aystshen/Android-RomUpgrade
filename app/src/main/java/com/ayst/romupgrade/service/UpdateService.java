@@ -60,6 +60,7 @@ import com.ayst.romupgrade.adapter.DownloadAdapter;
 import com.ayst.romupgrade.entity.InstallProgress;
 import com.ayst.romupgrade.entity.LocalPackage;
 import com.ayst.romupgrade.util.InstallUtil;
+import com.baidu.commonlib.interfaces.ErrorCode;
 import com.baidu.commonlib.interfaces.ICheckUpdateListener;
 import com.baidu.commonlib.interfaces.IDownloadListener;
 import com.baidu.commonlib.interfaces.IUpgradeListener;
@@ -194,6 +195,7 @@ public class UpdateService extends Service {
     private int mLocalPackageIndex = 0;
     private int mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
     private List<LocalPackage> mLocalPackages = new ArrayList<>();
+    private CustomUpgradeInterface mCustomUpgradeInterface;
 
     private HashMap<String, InstallProgress> mInstallProgresses = new HashMap<>();
 
@@ -365,8 +367,8 @@ public class UpdateService extends Service {
                     Log.i(TAG, "WorkHandler, COMMAND_INITIAL");
                     if (App.getOtaAgent() != null) {
                         // 配置百度自定义升级安装接口
-                        App.getOtaAgent().setCustomUpgrade(new CustomUpgradeInterface(
-                                mContext, App.getProductId()));
+                        mCustomUpgradeInterface = new CustomUpgradeInterface(mContext, App.getProductId());
+                        App.getOtaAgent().setCustomUpgrade(mCustomUpgradeInterface);
                     } else {
                         Log.e(TAG, "WorkHandler, IOtaAgent is null");
                     }
@@ -729,7 +731,18 @@ public class UpdateService extends Service {
      */
     @SuppressLint("CheckResult")
     private void installApp(final File file) {
-        Log.i(TAG, "installApp, file=" + file.getPath());
+        installApp("", file);
+    }
+
+    /**
+     * 安装应用
+     *
+     * @param pkgName 包名
+     * @param file 应用
+     */
+    @SuppressLint("CheckResult")
+    private void installApp(final String pkgName, final File file) {
+        Log.i(TAG, "installApp, pkgName=" + pkgName + " file=" + file.getPath());
 
         Observable.create(new ObservableOnSubscribe<Boolean>() {
             @Override
@@ -738,6 +751,9 @@ public class UpdateService extends Service {
                     emitter.onNext(true);
                 } else {
                     InstallUtil.install(UpdateService.this, file.getAbsolutePath());
+                }
+                if (!TextUtils.isEmpty(pkgName)) {
+                    mCustomUpgradeInterface.reportSuccess(pkgName);
                 }
             }
         }).subscribeOn(Schedulers.io())
@@ -765,16 +781,41 @@ public class UpdateService extends Service {
      */
     @SuppressLint("CheckResult")
     private void installSystem(final File file) {
-        Log.i(TAG, "installSystem, file=" + file.getPath());
+        installSystem("", file);
+    }
+
+    /**
+     * 安装系统升级
+     *
+     * @param pkgName 包名（com.android.system）
+     * @param file 系统升级包
+     */
+    @SuppressLint("CheckResult")
+    private void installSystem(final String pkgName, final File file) {
+        Log.i(TAG, "installSystem, pkgName=" + pkgName + " file=" + file.getPath());
 
         Observable.create(new ObservableOnSubscribe<String>() {
             @Override
             public void subscribe(ObservableEmitter<String> emitter) throws Exception {
                 if (mService.verifyPackage(file.getAbsolutePath())) {
                     if (!mService.installPackage(file.getAbsolutePath())) {
+                        if (!TextUtils.isEmpty(pkgName)) {
+                            mCustomUpgradeInterface.reportFail(pkgName,
+                                    ErrorCode.UPGRADE_INSTALL_ERROR,
+                                    "Install failed");
+                        }
                         emitter.onNext(getString(R.string.upgrade_install_failed));
+                    } else {
+                        if (!TextUtils.isEmpty(pkgName)) {
+                            mCustomUpgradeInterface.reportSuccess(pkgName);
+                        }
                     }
                 } else {
+                    if (!TextUtils.isEmpty(pkgName)) {
+                        mCustomUpgradeInterface.reportFail(pkgName,
+                                ErrorCode.UPGRADE_SIGN_VERIFY_ERROR,
+                                "Verify failed");
+                    }
                     emitter.onNext(getString(R.string.upgrade_invalid_package));
                 }
             }
@@ -1150,16 +1191,28 @@ public class UpdateService extends Service {
         protected String installSystem(String pkgName, File file, boolean silence) {
             Log.i(TAG, "CustomUpgradeInterface->installSystem, pkgName=" + pkgName);
 
-            UpdateService.this.installSystem(file);
+            UpdateService.this.installSystem(pkgName, file);
 
-            return "";
+            return Constants.UPGRADE_PENDING;
         }
 
         @Override
         protected void installApp(String pkgName, File file, boolean silence) {
             Log.i(TAG, "CustomUpgradeInterface->installApp, pkgName=" + pkgName);
 
-            UpdateService.this.installApp(file);
+            UpdateService.this.installApp(pkgName, file);
+        }
+
+        protected void reportSuccess(String pkgName) {
+            Log.i(TAG, "CustomUpgradeInterface->reportSuccess, pkgName=" + pkgName);
+
+            getListener(pkgName).onSuccess(pkgName);
+        }
+
+        protected void reportFail(String pkgName, int errCode, String reason) {
+            Log.i(TAG, "CustomUpgradeInterface->reportFail, pkgName=" + pkgName);
+
+            getListener(pkgName).onFailed(pkgName, errCode, reason);
         }
     }
 }
