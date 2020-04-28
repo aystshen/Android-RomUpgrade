@@ -30,9 +30,33 @@
     <string name="upgrade_message">"Found a new version, is it upgraded?\n"</string>
     <string name="upgrade_success">Upgrade success!</string>
     <string name="upgrade_failed">Upgrade failed!</string>
-    <string name="upgrade_install_success">%1$s install success!</string>
-    <string name="upgrade_install_failed">%1$s install failed!</string>
-    <string name="upgrade_invalid_package">%1$s invalid package!</string>
+    <string name="upgrade_install_success">install success!</string>
+    <string name="upgrade_install_failed">install failed!</string>
+    <string name="upgrade_invalid_package">invalid package!</string>
     <string name="upgrade_unknown_sources_package">To install the application, you need to open the permissions of unknown source. Please go to Settings to open the permissions!</string>
 
+    <!--checkUpdate回调错误码-->
+    <string name="check_param_error">"param error!"</string>
+    <string name="check_net_error">"network error!"</string>
+    <string name="check_no_update">"no update!"</string>
+
+    <!--download回调错误码-->
+    <string name="download_param_error">"param error!"</string>
+    <string name="download_net_error">"network error!"</string>
+    <string name="download_no_space">"no space!"</string>
+    <string name="download_app_installed_error">"app installed!"</string>
+    <string name="download_app_not_install_error">"app not install!"</string>
+    <string name="download_low_version_error">"low version!"</string>
+    <string name="download_sha1_verify_error">"sha1 verify error!"</string>
+
+    <!--upgrade回调错误码-->
+    <string name="upgrade_param_error">"param error!"</string>
+    <string name="upgrade_sha1_verify_error">"sha1 verify error!"</string>
+    <string name="upgrade_sign_verify_error">"sign verify error!"</string>
+    <string name="upgrade_file_not_exist_error">"file not exist!"</string>
+    <string name="upgrade_not_installed_error">"not installed!"</string>
+    <string name="upgrade_install_error">"install error!"</string>
+    <string name="upgrade_uninstall_error">"uninstall error!"</string>
+    <string name="upgrade_custom_error">"custom error!"</string>
+    <string name="upgrade_user_not_confirm">"user not confirm!"</string>
 </resources>

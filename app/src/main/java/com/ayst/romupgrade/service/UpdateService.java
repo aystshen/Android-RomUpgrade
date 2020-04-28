@@ -57,6 +57,7 @@ import androidx.documentfile.provider.DocumentFile;
 
 import com.ayst.romupgrade.IRomUpgradeService;
 import com.ayst.romupgrade.adapter.DownloadAdapter;
+import com.ayst.romupgrade.baidu.ErrorString;
 import com.ayst.romupgrade.entity.InstallProgress;
 import com.ayst.romupgrade.entity.LocalPackage;
 import com.ayst.romupgrade.util.InstallUtil;
@@ -114,9 +115,9 @@ public class UpdateService extends Service {
     public static final int UPDATE_TYPE_SILENT = 2;
 
     /**
-     * 本地升级目录
+     * 本地应用升级目录
      * <p>
-     * u盘中新建此目录，将待安装app或系统ota包复制到此目录下，插入u盘将弹出升级提示
+     * u盘中新建此目录，将待安装app复制到此目录下，插入u盘将弹出升级提示
      */
     public static String LOCAL_UPDATE_PATH = "exupdate";
 
@@ -133,7 +134,7 @@ public class UpdateService extends Service {
     /**
      * 本地系统升级ota包名
      * <p>
-     * 将ota包复制到u盘{@link #LOCAL_UPDATE_PATH}路径下，并重命名为此文件名，插入u盘将弹出升级提示
+     * 将ota包复制到u盘根路径下，并重命名为此文件名，插入u盘将弹出升级提示
      */
     public static final String ROM_OTA_PACKAGE_FILENAME = "update.zip";
 
@@ -145,7 +146,8 @@ public class UpdateService extends Service {
 
     /**
      * 本地升级包检查内部路径(sdcard)，只检查根目录
-     * 例：/data/media/0/{@link LOCAL_UPDATE_PATH}
+     * 例：/data/media/0/{@link #LOCAL_UPDATE_PATH}
+     *    /data/media/0/{@link #ROM_OTA_PACKAGE_FILENAME}
      * <p>
      * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
      */
@@ -157,7 +159,8 @@ public class UpdateService extends Service {
 
     /**
      * 本地升级包检查外部路径（usb），检查二级子目录
-     * 例：/mnt/media_rw/6ABF-0AD3/{@link LOCAL_UPDATE_PATH}
+     * 例：/mnt/media_rw/6ABF-0AD3/{@link #LOCAL_UPDATE_PATH}
+     *    /mnt/media_rw/6ABF-0AD3/{@link #ROM_OTA_PACKAGE_FILENAME}
      * <p>
      * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
      */
@@ -186,6 +189,7 @@ public class UpdateService extends Service {
 
     private Context mContext;
     private WorkHandler mWorkHandler;
+    private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
     private UpdateReceiver mMediaMountReceiver;
     private Dialog mDialog;
@@ -299,6 +303,7 @@ public class UpdateService extends Service {
         HandlerThread workThread = new HandlerThread("UpdateService: workThread");
         workThread.start();
         mWorkHandler = new WorkHandler(workThread.getLooper());
+        mMainHandler = new Handler(Looper.getMainLooper());
 
         mUpdateReceiver = new UpdateReceiver();
         IntentFilter intentFilter = new IntentFilter();
@@ -432,7 +437,12 @@ public class UpdateService extends Service {
 
             if (null != newVersions && !newVersions.isEmpty()) {
                 sWorkHandleLocked = true;
-                showNewVersion(newVersions);
+                mMainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        showNewVersion(newVersions);
+                    }
+                });
             }
         }
     }
@@ -738,7 +748,7 @@ public class UpdateService extends Service {
      * 安装应用
      *
      * @param pkgName 包名
-     * @param file 应用
+     * @param file    应用
      */
     @SuppressLint("CheckResult")
     private void installApp(final String pkgName, final File file) {
@@ -762,13 +772,13 @@ public class UpdateService extends Service {
                     @Override
                     public void accept(Boolean success) throws Exception {
                         if (success) {
-                            Toast.makeText(UpdateService.this, String.format(
-                                    getString(R.string.upgrade_install_success),
-                                    file.getName()), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(UpdateService.this,
+                                    file.getName() + " " + getString(R.string.upgrade_install_success),
+                                    Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(UpdateService.this, String.format(
-                                    getString(R.string.upgrade_install_failed),
-                                    file.getName()), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(UpdateService.this,
+                                    file.getName() + " " + getString(R.string.upgrade_install_failed),
+                                    Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -788,7 +798,7 @@ public class UpdateService extends Service {
      * 安装系统升级
      *
      * @param pkgName 包名（com.android.system）
-     * @param file 系统升级包
+     * @param file    系统升级包
      */
     @SuppressLint("CheckResult")
     private void installSystem(final String pkgName, final File file) {
@@ -942,20 +952,46 @@ public class UpdateService extends Service {
     }
 
     /**
+     * 安装系统升级包失败提示（自定义升级）
+     *
+     * @param file    升级包
+     * @param message 错误信息
+     */
+    private void showInstallSystemFail(final File file, final String message) {
+        showInstallSystemFail(file, "", message);
+    }
+
+    /**
+     * 安装系统升级包失败提示（百度升级）
+     *
+     * @param pkgName com.android.system
+     * @param message 错误信息
+     */
+    private void showInstallSystemFail(final String pkgName, final String message) {
+        showInstallSystemFail(null, pkgName, message);
+    }
+
+    /**
      * 安装系统升级包失败提示
      *
      * @param file    系统升级包
      * @param message 失败信息
      */
     @SuppressLint("CheckResult")
-    private void showInstallSystemFail(final File file, String message) {
+    private void showInstallSystemFail(final File file, final String pkgName, final String message) {
         Dialog dialog = new AlertDialog.Builder(getApplicationContext())
                 .setTitle(R.string.upgrade_title)
-                .setMessage(String.format(message, file.getAbsoluteFile()))
+                .setMessage((file != null ? file.getAbsoluteFile() : pkgName) + " " + message)
                 .setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        installSystem(file);
+                        if (file != null) {
+                            installSystem(file);
+                        } else {
+                            if (App.getOtaAgent() != null) {
+                                App.getOtaAgent().upgrade(pkgName, new UpgradeListener());
+                            }
+                        }
                         dialog.dismiss();
                     }
                 })
@@ -963,7 +999,9 @@ public class UpdateService extends Service {
                     @Override
                     public void onClick(DialogInterface dialog, int i) {
                         sWorkHandleLocked = false;
-                        deletePackage(file);
+                        if (file != null) {
+                            deletePackage(file);
+                        }
                         dialog.dismiss();
                     }
                 }).create();
@@ -979,7 +1017,9 @@ public class UpdateService extends Service {
                     public void accept(Long aLong) throws Exception {
                         if (dialog.isShowing()) {
                             sWorkHandleLocked = false;
-                            deletePackage(file);
+                            if (file != null) {
+                                deletePackage(file);
+                            }
                             dialog.dismiss();
                         }
                     }
@@ -1072,18 +1112,18 @@ public class UpdateService extends Service {
 
         @Override
         public void onPending(String pkgName) {
-
+            Log.i(TAG, "DownloadListener->onPending, pkgName=" + pkgName);
         }
 
         @Override
         public void onPrepare(String pkgName) {
-
+            Log.i(TAG, "DownloadListener->onPrepare, pkgName=" + pkgName);
         }
 
         @Override
         public void onProgress(String pkgName, int sofarBytes, int totalBytes) {
             long progress = sofarBytes / (totalBytes / 100);
-            Log.i(TAG, "download->progress, package: " + pkgName + " " + sofarBytes
+            Log.i(TAG, "DownloadListener->progress, pkgName: " + pkgName + " " + sofarBytes
                     + "/" + totalBytes + " " + progress + "%");
             InstallProgress item = mInstallProgresses.get(pkgName);
             if (null != item) {
@@ -1095,18 +1135,18 @@ public class UpdateService extends Service {
 
         @Override
         public void onPaused(String pkgName) {
-
+            Log.i(TAG, "DownloadListener->onPaused, pkgName=" + pkgName);
         }
 
         @Override
         public void onFailed(String pkgName, int errCode, String reason) {
-            Log.e(TAG, "DownloadListener, onFailed errCode=" + errCode
+            Log.e(TAG, "DownloadListener->onFailed errCode=" + errCode
                     + " reason=" + reason);
         }
 
         @Override
         public void onFinished(String pkgName) {
-            Log.i(TAG, "download->completed");
+            Log.i(TAG, "download->onFinished, pkgName=" + pkgName);
 
             // 标记当前升级包下载完成
             InstallProgress item = mInstallProgresses.get(pkgName);
@@ -1130,6 +1170,8 @@ public class UpdateService extends Service {
 
             if (App.getOtaAgent() != null) {
                 App.getOtaAgent().upgrade(pkgName, new UpgradeListener());
+            } else {
+                Log.e(TAG, "DownloadListener->onFinished getOtaAgent is null.");
             }
         }
     }
@@ -1140,22 +1182,27 @@ public class UpdateService extends Service {
     private class UpgradeListener implements IUpgradeListener {
 
         @Override
-        public void onProgress(String s, String s1, int i) {
-
+        public void onProgress(String pkgName, String stage, int percent) {
+            Log.i(TAG, "UpgradeListener->onProgress, pkgName=" + pkgName
+                    + " stage=" + stage + " percent=" + percent);
         }
 
         @Override
-        public void onFailed(String s, int i, String s1) {
-            sWorkHandleLocked = false;
+        public void onFailed(String pkgName, int errCode, String reason) {
+            Log.i(TAG, "UpgradeListener->onFailed, pkgName=" + pkgName
+                    + " errCode=" + errCode + " reason=" + reason);
+            showInstallSystemFail(pkgName, ErrorString.get(mContext, errCode));
         }
 
         @Override
-        public void onWriteDone(String s) {
-
+        public void onWriteDone(String pkgName) {
+            Log.i(TAG, "UpgradeListener->onWriteDone, pkgName=" + pkgName);
         }
 
         @Override
         public void onSuccess(String pkgName) {
+            Log.i(TAG, "UpgradeListener->onSuccess, pkgName=" + pkgName);
+
             // 标记当前升级包安装完成
             InstallProgress item = mInstallProgresses.get(pkgName);
             if (null != item) {
@@ -1203,12 +1250,22 @@ public class UpdateService extends Service {
             UpdateService.this.installApp(pkgName, file);
         }
 
+        /**
+         * 上报安装成功
+         *
+         * @param pkgName 包名
+         */
         protected void reportSuccess(String pkgName) {
             Log.i(TAG, "CustomUpgradeInterface->reportSuccess, pkgName=" + pkgName);
 
             getListener(pkgName).onSuccess(pkgName);
         }
 
+        /**
+         * 上报安装失败
+         *
+         * @param pkgName 包名
+         */
         protected void reportFail(String pkgName, int errCode, String reason) {
             Log.i(TAG, "CustomUpgradeInterface->reportFail, pkgName=" + pkgName);
 

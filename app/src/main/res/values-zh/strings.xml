@@ -15,24 +15,49 @@
   -->
 
 <resources>
-    <string name="app_name">升级</string>
-    <string name="hide">隐藏</string>
-    <string name="cancel">取消</string>
-    <string name="retry">重试</string>
-    <string name="confirm">确认</string>
-    <string name="delete">删除</string>
-    <string name="ok">确定</string>
+    <string name="app_name">"升级"</string>
+    <string name="hide">"隐藏"</string>
+    <string name="cancel">"取消"</string>
+    <string name="retry">"重试"</string>
+    <string name="confirm">"确认"</string>
+    <string name="delete">"删除"</string>
+    <string name="ok">"确定"</string>
 
-    <string name="upgrade_title">升级</string>
-    <string name="upgrade_download">下载</string>
-    <string name="upgrade_ok">立即升级</string>
-    <string name="upgrade_cancel">暂不升级</string>
+    <string name="upgrade_title">"升级"</string>
+    <string name="upgrade_download">"下载"</string>
+    <string name="upgrade_ok">"立即升级"</string>
+    <string name="upgrade_cancel">"暂不升级"</string>
     <string name="upgrade_message">"发现新版本，是否升级？\n"</string>
-    <string name="upgrade_success">升级成功！</string>
-    <string name="upgrade_failed">升级失败！</string>
-    <string name="upgrade_install_success">%1$s 安装成功！</string>
-    <string name="upgrade_install_failed">%1$s 安装失败！</string>
-    <string name="upgrade_invalid_package">"%1$s 无效的升级包！"</string>
+    <string name="upgrade_success">"升级成功！"</string>
+    <string name="upgrade_failed">"升级失败！"</string>
+    <string name="upgrade_install_success">"安装成功！"</string>
+    <string name="upgrade_install_failed">"安装失败！"</string>
+    <string name="upgrade_invalid_package">"验证失败！"</string>
     <string name="upgrade_unknown_sources_package">"安装应用需要打开未知来源权限，请去设置中开启权限！"</string>
+
+    <!--checkUpdate回调错误码-->
+    <string name="check_param_error">"参数错误！"</string>
+    <string name="check_net_error">"网络错误！"</string>
+    <string name="check_no_update">"无更新！"</string>
+
+    <!--download回调错误码-->
+    <string name="download_param_error">"参数错误！"</string>
+    <string name="download_net_error">"网络错误！"</string>
+    <string name="download_no_space">"空间不足！"</string>
+    <string name="download_app_installed_error">"安装app，app已安装错误！"</string>
+    <string name="download_app_not_install_error">"更新app，app未安装错误！"</string>
+    <string name="download_low_version_error">"更新app，版本过低错误！"</string>
+    <string name="download_sha1_verify_error">"sha1校验失败！"</string>
+
+    <!--upgrade回调错误码-->
+    <string name="upgrade_param_error">"参数错误！"</string>
+    <string name="upgrade_sha1_verify_error">"sha1校验失败！"</string>
+    <string name="upgrade_sign_verify_error">"签名校验失败！"</string>
+    <string name="upgrade_file_not_exist_error">"文件不存在！"</string>
+    <string name="upgrade_not_installed_error">"卸载app，app未安装！"</string>
+    <string name="upgrade_install_error">"app安装错误！"</string>
+    <string name="upgrade_uninstall_error">"app卸载错误！"</string>
+    <string name="upgrade_custom_error">"安装自定义错误！"</string>
+    <string name="upgrade_user_not_confirm">"用户取消升级！"</string>
 
 </resources>
