@@ -53,7 +53,6 @@ import android.view.WindowManager;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import androidx.annotation.MainThread;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.ayst.romupgrade.IRomUpgradeService;
@@ -187,7 +186,6 @@ public class UpdateService extends Service {
 
     private Context mContext;
     private WorkHandler mWorkHandler;
-    private Handler mMainHandler;
     private UpdateReceiver mUpdateReceiver;
     private UpdateReceiver mMediaMountReceiver;
     private Dialog mDialog;
@@ -301,8 +299,6 @@ public class UpdateService extends Service {
         HandlerThread workThread = new HandlerThread("UpdateService: workThread");
         workThread.start();
         mWorkHandler = new WorkHandler(workThread.getLooper());
-
-        mMainHandler = new Handler(Looper.getMainLooper());
 
         mUpdateReceiver = new UpdateReceiver();
         IntentFilter intentFilter = new IntentFilter();
@@ -436,7 +432,6 @@ public class UpdateService extends Service {
 
             if (null != newVersions && !newVersions.isEmpty()) {
                 sWorkHandleLocked = true;
-
                 showNewVersion(newVersions);
             }
         }
@@ -838,37 +833,32 @@ public class UpdateService extends Service {
      * 本地升级提示
      */
     private void showNewVersion() {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                StringBuilder sb = new StringBuilder();
-                for (LocalPackage localPackage : mLocalPackages) {
-                    sb.append(localPackage.getFile().getName()).append("\n");
-                }
+        StringBuilder sb = new StringBuilder();
+        for (LocalPackage localPackage : mLocalPackages) {
+            sb.append(localPackage.getFile().getName()).append("\n");
+        }
 
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_title)
-                        .setMessage(getString(R.string.upgrade_message) + sb.toString())
-                        .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                installLocalNext();
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int i) {
-                                sWorkHandleLocked = false;
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(getString(R.string.upgrade_message) + sb.toString())
+                .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        installLocalNext();
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
-            }
-        });
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
     }
 
     /**
@@ -877,88 +867,78 @@ public class UpdateService extends Service {
      * @param newVersions 升级列表
      */
     private void showNewVersion(final List<NewVersionBean> newVersions) {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                mInstallProgresses.clear();
+        mInstallProgresses.clear();
 
-                StringBuilder sb = new StringBuilder();
-                for (NewVersionBean bean : newVersions) {
-                    sb.append(bean.getPackageX()).append("(").append(bean.getVersion()).append(")\n");
-                    sb.append(bean.getInfo()).append("\n");
+        StringBuilder sb = new StringBuilder();
+        for (NewVersionBean bean : newVersions) {
+            sb.append(bean.getPackageX()).append("(").append(bean.getVersion()).append(")\n");
+            sb.append(bean.getInfo()).append("\n");
 
-                    mInstallProgresses.put(bean.getPackageX(), new InstallProgress(bean));
-                }
+            mInstallProgresses.put(bean.getPackageX(), new InstallProgress(bean));
+        }
 
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_title)
-                        .setMessage(getString(R.string.upgrade_message) + sb.toString())
-                        .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                showDownloading();
-                                if (App.getOtaAgent() != null) {
-                                    App.getOtaAgent().downLoadAll(new DownloadListener());
-                                }
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int i) {
-                                sWorkHandleLocked = false;
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(getString(R.string.upgrade_message) + sb.toString())
+                .setPositiveButton(R.string.upgrade_ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        showDownloading();
+                        if (App.getOtaAgent() != null) {
+                            App.getOtaAgent().downLoadAll(new DownloadListener());
+                        }
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.upgrade_cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
-            }
-        });
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
     }
 
     /**
      * 下载进度
      */
     private void showDownloading() {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                mDownloadAdapter = new DownloadAdapter(mContext, new ArrayList<>(mInstallProgresses.values()));
+        mDownloadAdapter = new DownloadAdapter(this, new ArrayList<>(mInstallProgresses.values()));
 
-                LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                View view = inflater.inflate(R.layout.layout_download, null);
-                mDownloadLv = (ListView) view.findViewById(R.id.list);
-                mDownloadLv.setAdapter(mDownloadAdapter);
+        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View view = inflater.inflate(R.layout.layout_download, null);
+        mDownloadLv = (ListView) view.findViewById(R.id.list);
+        mDownloadLv.setAdapter(mDownloadAdapter);
 
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_download)
-                        .setView(view)
-                        .setPositiveButton(R.string.hide, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int i) {
-                                sWorkHandleLocked = false;
-                                if (App.getOtaAgent() != null) {
-                                    App.getOtaAgent().downLoadAbortAll();
-                                }
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_download)
+                .setView(view)
+                .setPositiveButton(R.string.hide, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        if (App.getOtaAgent() != null) {
+                            App.getOtaAgent().downLoadAbortAll();
+                        }
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
-                mDialog = dialog;
-            }
-        });
+        mDialog = dialog;
     }
 
     /**
@@ -969,46 +949,41 @@ public class UpdateService extends Service {
      */
     @SuppressLint("CheckResult")
     private void showInstallSystemFail(final File file, String message) {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_title)
-                        .setMessage(String.format(message, file.getAbsoluteFile()))
-                        .setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                installSystem(file);
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int i) {
-                                sWorkHandleLocked = false;
-                                deletePackage(file);
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(String.format(message, file.getAbsoluteFile()))
+                .setPositiveButton(R.string.retry, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        installSystem(file);
+                        dialog.dismiss();
+                    }
+                })
+                .setNegativeButton(R.string.delete, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        sWorkHandleLocked = false;
+                        deletePackage(file);
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
-                Observable.timer(15000, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Consumer<Long>() {
-                            @Override
-                            public void accept(Long aLong) throws Exception {
-                                if (dialog.isShowing()) {
-                                    sWorkHandleLocked = false;
-                                    deletePackage(file);
-                                    dialog.dismiss();
-                                }
-                            }
-                        });
-            }
-        });
+        Observable.timer(15000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            sWorkHandleLocked = false;
+                            deletePackage(file);
+                            dialog.dismiss();
+                        }
+                    }
+                });
     }
 
     /**
@@ -1016,35 +991,30 @@ public class UpdateService extends Service {
      */
     @SuppressLint("CheckResult")
     private void showUpgradeSuccess() {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_title)
-                        .setMessage(R.string.upgrade_success)
-                        .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(R.string.upgrade_success)
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
-                Observable.timer(5000, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Consumer<Long>() {
-                            @Override
-                            public void accept(Long aLong) throws Exception {
-                                if (dialog.isShowing()) {
-                                    dialog.dismiss();
-                                }
-                            }
-                        });
-            }
-        });
+        Observable.timer(5000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                    }
+                });
     }
 
     /**
@@ -1052,35 +1022,30 @@ public class UpdateService extends Service {
      */
     @SuppressLint("CheckResult")
     private void showUpgradeFailed() {
-        mMainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                Dialog dialog = new AlertDialog.Builder(getApplicationContext())
-                        .setTitle(R.string.upgrade_title)
-                        .setMessage(R.string.upgrade_failed)
-                        .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        }).create();
+        Dialog dialog = new AlertDialog.Builder(getApplicationContext())
+                .setTitle(R.string.upgrade_title)
+                .setMessage(R.string.upgrade_failed)
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                }).create();
 
-                dialog.setCancelable(false);
-                dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                dialog.show();
+        dialog.setCancelable(false);
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
 
-                Observable.timer(5000, TimeUnit.MILLISECONDS)
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Consumer<Long>() {
-                            @Override
-                            public void accept(Long aLong) throws Exception {
-                                if (dialog.isShowing()) {
-                                    dialog.dismiss();
-                                }
-                            }
-                        });
-            }
-        });
+        Observable.timer(5000, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        if (dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
+                    }
+                });
     }
 
     /**
