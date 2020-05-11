@@ -91,6 +91,12 @@ public class UpdateService extends Service {
     private static final String TAG = "UpdateService";
 
     /**
+     * 检查升级结果通知广播Action
+     */
+    public static final String ACTION_CHECK_UPDATE_RESULT =
+            "com.ayst.romupgrade.action.CHECK_UPDATE_RESULT";
+
+    /**
      * 命令
      * <p>
      * COMMAND_NULL                    无效命令
@@ -196,6 +202,7 @@ public class UpdateService extends Service {
     private ListView mDownloadLv;
     private DownloadAdapter mDownloadAdapter;
 
+    private boolean isUserTriggered = false;
     private int mLocalPackageIndex = 0;
     private int mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
     private List<LocalPackage> mLocalPackages = new ArrayList<>();
@@ -216,6 +223,7 @@ public class UpdateService extends Service {
             Log.i(TAG, "checkUpdate");
             if (AppUtils.isConnNetWork(mContext)) {
                 if (App.getOtaAgent() != null) {
+                    isUserTriggered = true;
                     App.getOtaAgent().checkUpdate(true, new CheckUpdateListener());
                 }
             } else {
@@ -1096,12 +1104,29 @@ public class UpdateService extends Service {
         @Override
         public void onSuccess(String jsonList) {
             Log.i(TAG, "CheckUpdateListener->onSuccess, jsonList=" + jsonList);
+
             parseBaiduNewVersion(jsonList);
+
+            if (isUserTriggered) {
+                Intent intent = new Intent();
+                intent.setAction(ACTION_CHECK_UPDATE_RESULT);
+                intent.putExtra("result", 1);
+                mContext.sendBroadcast(intent);
+                isUserTriggered = false;
+            }
         }
 
         @Override
         public void onFail(int errCode, String reason) {
             Log.w(TAG, "CheckUpdateListener->onFail, errCode=" + errCode + ", reason=" + reason);
+
+            if (isUserTriggered) {
+                Intent intent = new Intent();
+                intent.setAction(ACTION_CHECK_UPDATE_RESULT);
+                intent.putExtra("result", 0);
+                mContext.sendBroadcast(intent);
+                isUserTriggered = false;
+            }
         }
     }
 
