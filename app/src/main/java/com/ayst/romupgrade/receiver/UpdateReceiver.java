@@ -63,9 +63,9 @@ public class UpdateReceiver extends BroadcastReceiver {
                     UpdateService.COMMAND_CHECK_LOCAL_UPDATE,
                     10000));
 
-            context.startService(buildIntent(context,
-                    UpdateService.COMMAND_CHECK_REMOTE_UPDATE,
-                    25000));
+//            context.startService(buildIntent(context,
+//                    UpdateService.COMMAND_CHECK_REMOTE_UPDATE,
+//                    25000));
 
         } else if (TextUtils.equals(Intent.ACTION_MEDIA_MOUNTED, action)) {
             /*
