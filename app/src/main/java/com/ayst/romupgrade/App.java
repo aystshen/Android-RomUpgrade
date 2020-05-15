@@ -62,7 +62,7 @@ public class App extends OtaApplication {
     protected void initService(IOtaSdkHelper otaSdkHelper) {
         otaSdkHelper.init(AppUtils.getDeviceId(), new SystemInfo());
         otaSdkHelper.setUpgradePath(AppUtils.getExternalDir(this, "upgrade"));
-        otaSdkHelper.setExtOption(16, AppUtils.getExternalCacheDir(App.this, "apks"));
+        otaSdkHelper.setExtOption(16, AppUtils.getExternalDir(App.this, "apks"));
         otaSdkHelper.setAutoCheck(true);
         otaSdkHelper.setSilentUpgradeTime("00:00", "24:00");
 

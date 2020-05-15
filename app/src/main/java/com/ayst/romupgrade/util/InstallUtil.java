@@ -43,6 +43,8 @@ public class InstallUtil {
     private static final String TAG = "InstallUtil";
     private static final String AUTHORITY = "com.ayst.romupgrade.fileProvider";
 
+    private static final String EXTRA_SILENT_INSTALL = "silent_install";
+
     public static void install(Context context, String path) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             installO(context, path);
@@ -64,6 +66,7 @@ public class InstallUtil {
         install.setDataAndType(Uri.parse("file://" + path),
                 "application/vnd.android.package-archive");
         install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        install.putExtra(EXTRA_SILENT_INSTALL, true); // 静默安装
         context.startActivity(install);
     }
 
@@ -79,6 +82,7 @@ public class InstallUtil {
         install.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+        install.putExtra(EXTRA_SILENT_INSTALL, true); // 静默安装
         context.startActivity(install);
     }
 

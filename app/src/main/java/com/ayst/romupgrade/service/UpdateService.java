@@ -704,7 +704,7 @@ public class UpdateService extends Service {
             @Override
             public void subscribe(ObservableEmitter<File> emitter) throws Exception {
                 try {
-                    File to = new File(AppUtils.getExternalCacheDir(mContext, "apks")
+                    File to = new File(AppUtils.getExternalDir(mContext, "apks")
                             + File.separator + file.getName());
 
                     copyFile(DocumentFile.fromFile(file), DocumentFile.fromFile(to));
