@@ -45,26 +45,26 @@ public class NewVersionBean implements Serializable {
      */
 
     @SerializedName("package")
-    private String packageX;
+    private String packageName;
     @SerializedName("version")
     private String version;
     @SerializedName("info")
     private String info;
     @SerializedName("taskid")
-    private String taskid;
+    private String taskId;
     @SerializedName("detail")
     private String detail;
     @SerializedName("filesize")
-    private int filesize;
+    private int fileSize;
     @SerializedName("updtype")
-    private int updtype;
+    private int updateType;
 
-    public String getPackageX() {
-        return packageX;
+    public String getPackageName() {
+        return packageName;
     }
 
-    public void setPackageX(String packageX) {
-        this.packageX = packageX;
+    public void setPackageName(String packageName) {
+        this.packageName = packageName;
     }
 
     public String getVersion() {
@@ -83,12 +83,12 @@ public class NewVersionBean implements Serializable {
         this.info = info;
     }
 
-    public String getTaskid() {
-        return taskid;
+    public String getTaskId() {
+        return taskId;
     }
 
-    public void setTaskid(String taskid) {
-        this.taskid = taskid;
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
     }
 
     public String getDetail() {
@@ -99,20 +99,20 @@ public class NewVersionBean implements Serializable {
         this.detail = detail;
     }
 
-    public int getFilesize() {
-        return filesize;
+    public int getFileSize() {
+        return fileSize;
     }
 
-    public void setFilesize(int filesize) {
-        this.filesize = filesize;
+    public void setFileSize(int fileSize) {
+        this.fileSize = fileSize;
     }
 
-    public int getUpdtype() {
-        return updtype;
+    public int getUpdateType() {
+        return updateType;
     }
 
-    public void setUpdtype(int updtype) {
-        this.updtype = updtype;
+    public void setUpdateType(int updateType) {
+        this.updateType = updateType;
     }
 
     public int getAfter() {
@@ -125,5 +125,18 @@ public class NewVersionBean implements Serializable {
             }
         }
         return AFTER_NONE;
+    }
+
+    @Override
+    public String toString() {
+        return "NewVersionBean{" +
+                "packageName='" + packageName + '\'' +
+                ", version='" + version + '\'' +
+                ", info='" + info + '\'' +
+                ", taskId='" + taskId + '\'' +
+                ", detail='" + detail + '\'' +
+                ", fileSize=" + fileSize +
+                ", updateType=" + updateType +
+                '}';
     }
 }

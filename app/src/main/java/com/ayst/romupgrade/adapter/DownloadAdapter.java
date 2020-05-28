@@ -71,7 +71,7 @@ public class DownloadAdapter extends BaseAdapter {
             holder = (ViewHolder) view.getTag();
         }
 
-        holder.mTitleTv.setText(mData.get(position).getInfo().getPackageX() +
+        holder.mTitleTv.setText(mData.get(position).getInfo().getPackageName() +
                 " (" + mData.get(position).getInfo().getVersion() + ")");
         holder.mDownloadPgr.setProgress(mData.get(position).getProgress());
 

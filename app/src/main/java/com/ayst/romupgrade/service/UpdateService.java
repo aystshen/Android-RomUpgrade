@@ -893,10 +893,10 @@ public class UpdateService extends Service {
 
         StringBuilder sb = new StringBuilder();
         for (NewVersionBean bean : newVersions) {
-            sb.append(bean.getPackageX()).append("(").append(bean.getVersion()).append(")\n");
+            sb.append(bean.getPackageName()).append("(").append(bean.getVersion()).append(")\n");
             sb.append(bean.getInfo()).append("\n");
 
-            mInstallProgresses.put(bean.getPackageX(), new InstallProgress(bean));
+            mInstallProgresses.put(bean.getPackageName(), new InstallProgress(bean));
         }
 
         Dialog dialog = new AlertDialog.Builder(getApplicationContext())
