@@ -19,6 +19,7 @@ package com.ayst.romupgrade.util;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -32,6 +33,7 @@ import android.os.storage.StorageVolume;
 import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import java.io.BufferedInputStream;
@@ -681,5 +683,53 @@ public class AppUtils {
         }
 
         return paths;
+    }
+
+    /**
+     * reboot
+     *
+     * @param context
+     */
+    public static void reboot(Context context) {
+        Intent intent = new Intent(Intent.ACTION_REBOOT);
+        intent.putExtra("nowait", 1);
+        intent.putExtra("interval", 1);
+        intent.putExtra("window", 0);
+        context.sendBroadcast(intent);
+    }
+
+    /**
+     * shutdown
+     *
+     * @param context
+     */
+    public static void shutdown(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent intent = new Intent("com.android.internal.intent.action.REQUEST_SHUTDOWN");
+            intent.putExtra("android.intent.extra.KEY_CONFIRM", false);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+        } else {
+            Intent intent = new Intent("android.intent.action.ACTION_REQUEST_SHUTDOWN");
+            intent.putExtra("android.intent.extra.KEY_CONFIRM", false);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+        }
+    }
+
+    /**
+     * start app
+     *
+     * @param context
+     * @param packageName
+     */
+    public static void startApp(@NonNull Context context, @NonNull String packageName) {
+        Intent intent = context.getPackageManager()
+                .getLaunchIntentForPackage(packageName);
+        if (intent != null) {
+            context.startActivity(intent);
+        } else {
+            Log.e(TAG, "startApp, Package does not exist.");
+        }
     }
 }

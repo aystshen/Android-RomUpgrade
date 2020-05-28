@@ -32,6 +32,7 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -153,7 +154,7 @@ public class UpdateService extends Service {
     /**
      * 本地升级包检查内部路径(sdcard)，只检查根目录
      * 例：/data/media/0/{@link #LOCAL_UPDATE_PATH}
-     *    /data/media/0/{@link #ROM_OTA_PACKAGE_FILENAME}
+     * /data/media/0/{@link #ROM_OTA_PACKAGE_FILENAME}
      * <p>
      * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
      */
@@ -166,7 +167,7 @@ public class UpdateService extends Service {
     /**
      * 本地升级包检查外部路径（usb），检查二级子目录
      * 例：/mnt/media_rw/6ABF-0AD3/{@link #LOCAL_UPDATE_PATH}
-     *    /mnt/media_rw/6ABF-0AD3/{@link #ROM_OTA_PACKAGE_FILENAME}
+     * /mnt/media_rw/6ABF-0AD3/{@link #ROM_OTA_PACKAGE_FILENAME}
      * <p>
      * 不能使用AppUtils.getStorageList()获取的路径，否则在Recovery中无法找到文件
      */
@@ -328,6 +329,8 @@ public class UpdateService extends Service {
         mediaFilter.addDataScheme("file");
         this.registerReceiver(mMediaMountReceiver, mediaFilter);
 
+        registerInstallBroadcastReceiver();
+
         checkUpdateFlag();
     }
 
@@ -337,6 +340,7 @@ public class UpdateService extends Service {
 
         this.unregisterReceiver(mUpdateReceiver);
         this.unregisterReceiver(mMediaMountReceiver);
+        unregisterInstallBroadcastReceiver();
 
         super.onDestroy();
     }
@@ -1297,4 +1301,51 @@ public class UpdateService extends Service {
             getListener(pkgName).onFailed(pkgName, errCode, reason);
         }
     }
+
+    private void registerInstallBroadcastReceiver() {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
+        intentFilter.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        intentFilter.addDataScheme("package");
+        this.registerReceiver(mInstallBroadcastReceiver, intentFilter);
+    }
+
+    private void unregisterInstallBroadcastReceiver() {
+        this.unregisterReceiver(mInstallBroadcastReceiver);
+    }
+
+    private BroadcastReceiver mInstallBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive (Context context, Intent intent){
+            if (intent != null
+                    && (TextUtils.equals(Intent.ACTION_PACKAGE_ADDED, intent.getAction())
+                    || TextUtils.equals(Intent.ACTION_PACKAGE_REPLACED, intent.getAction()))) {
+                if (intent.getData() != null) {
+                    String packageName = intent.getData().getSchemeSpecificPart();
+                    Log.i(TAG, "mInstallBroadcastReceiver, installed-------->" + packageName);
+
+                    InstallProgress installProgress = mInstallProgresses.get(packageName);
+                    if (installProgress != null && !installProgress.isAfterExecuted()) {
+                        NewVersionBean info = installProgress.getInfo();
+                        if (info != null) {
+                            switch (info.getAfter()) {
+                                case NewVersionBean.AFTER_REBOOT:
+                                    Log.i(TAG, "mInstallBroadcastReceiver, AFTER_REBOOT");
+                                    AppUtils.reboot(UpdateService.this);
+                                    break;
+                                case NewVersionBean.AFTER_START_APP:
+                                    Log.i(TAG, "mInstallBroadcastReceiver, AFTER_START_APP");
+                                    AppUtils.startApp(UpdateService.this, packageName);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        installProgress.setAfterExecuted(true);
+                        mInstallProgresses.put(packageName, installProgress);
+                    }
+                }
+            }
+        }
+    };
 }

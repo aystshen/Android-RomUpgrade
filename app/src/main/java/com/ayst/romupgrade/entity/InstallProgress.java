@@ -23,12 +23,14 @@ public class InstallProgress {
     private int progress;
     private boolean isDownloaded;
     private boolean isInstalled;
+    private boolean isAfterExecuted;
 
     public InstallProgress(NewVersionBean info) {
         this.info = info;
         this.progress = 0;
         this.isDownloaded = false;
         this.isInstalled = false;
+        this.isAfterExecuted = false;
     }
 
     public NewVersionBean getInfo() {
@@ -63,6 +65,14 @@ public class InstallProgress {
         isInstalled = installed;
     }
 
+    public boolean isAfterExecuted() {
+        return isAfterExecuted;
+    }
+
+    public void setAfterExecuted(boolean afterExecuted) {
+        isAfterExecuted = afterExecuted;
+    }
+
     @Override
     public String toString() {
         return "InstallProgress{" +
@@ -70,6 +80,7 @@ public class InstallProgress {
                 ", progress=" + progress +
                 ", isDownloaded=" + isDownloaded +
                 ", isInstalled=" + isInstalled +
+                ", isAfterExecuted=" + isAfterExecuted +
                 '}';
     }
 }

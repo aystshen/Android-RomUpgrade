@@ -16,18 +16,30 @@
 
 package com.ayst.romupgrade.baidu;
 
+import android.text.TextUtils;
+
 import com.google.gson.annotations.SerializedName;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.Serializable;
 
 public class NewVersionBean implements Serializable {
 
     /**
+     * 安装完成后动作
+     */
+    public static final int AFTER_NONE = 0;        // 什么也不做
+    public static final int AFTER_REBOOT = 1;      // 安装后重启
+    public static final int AFTER_START_APP = 2;   // 安装后启动APP
+
+    /**
      * package : com.android.system
      * version : 1.0.51.0
      * info : infos
      * taskid : 60900
-     * detail : {}
+     * detail : {"after":"2"}
      * filesize : 514044607
      * updtype : 1
      */
@@ -101,5 +113,17 @@ public class NewVersionBean implements Serializable {
 
     public void setUpdtype(int updtype) {
         this.updtype = updtype;
+    }
+
+    public int getAfter() {
+        if (!TextUtils.isEmpty(detail)) {
+            try {
+                JSONObject detailObject = new JSONObject(detail);
+                return detailObject.getInt("after");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return AFTER_NONE;
     }
 }
