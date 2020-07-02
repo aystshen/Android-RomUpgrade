@@ -16,22 +16,24 @@
 
 package com.ayst.romupgrade.baidu;
 
+import android.os.Build;
+
 import com.baidu.commonlib.interfaces.ISystemInfo;
 import com.ayst.romupgrade.util.AppUtils;
 
 public class SystemInfo implements ISystemInfo {
     @Override
     public String getVersion() {
-        return AppUtils.getSwVersionName();
+        return AppUtils.getFwVersion();
     }
 
     @Override
     public String getModel() {
-        return AppUtils.getProductName();
+        return Build.MODEL;
     }
 
     @Override
     public String getCPU() {
-        return AppUtils.getPlatform();
+        return Build.BOARD;
     }
 }

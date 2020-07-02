@@ -47,7 +47,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 /**
  * Created by ayst.shen@foxmail.com on 2016/4/6.
@@ -61,18 +60,8 @@ public class AppUtils {
     private static String mVersionName = "";
     private static int mVersionCode = -1;
 
-    // Hardware version
-    private static String mHwVersionName = "";
-    private static int mHwVersionCode = -1;
-
     // Firmware version
-    private static String mSwVersionName = "";
-    private static int mSwVersionCode = -1;
-
-    // Product
-    private static String mProduceName = "";
-    private static String mProduceId = "";
-    private static String mPlatform = "";
+    private static String mFwVersion = "";
 
     // MAC
     private static String mEth0Mac = "";
@@ -93,8 +82,8 @@ public class AppUtils {
     /**
      * Is first run
      *
-     * @param context
-     * @return
+     * @param context Context
+     * @return true: First run, false: Not the first time
      */
     public static boolean isFirstRun(Context context) {
         boolean isFirst = SPUtils.getInstance(context).getData(KEY_IS_FIRST, true);
@@ -145,105 +134,16 @@ public class AppUtils {
     }
 
     /**
-     * Get product name
-     *
-     * @return product name
-     */
-    public static String getProductName() {
-        if (TextUtils.isEmpty(mProduceName)) {
-            mProduceName = AppUtils.getProperty("ro.product.model", "");
-        }
-        return mProduceName;
-    }
-
-    /**
-     * Get chip platform
-     *
-     * @return platform
-     */
-    public static String getPlatform() {
-        if (TextUtils.isEmpty(mPlatform)) {
-            mPlatform = AppUtils.getProperty("ro.product.board", "");
-        }
-        return mPlatform;
-    }
-
-    /**
-     * Get product id
-     *
-     * @return product id
-     */
-    public static String getProductId() {
-        if (TextUtils.isEmpty(mProduceId)) {
-            mProduceId = AppUtils.getProperty("ro.topband.product.id", "");
-        }
-        return mProduceId;
-    }
-
-    /**
-     * Get hardware version code
-     *
-     * @return version code
-     */
-    public static int getHwVersionCode() {
-        if (-1 == mHwVersionCode) {
-            int versionCode = 0;
-            String value = getHwVersionName();
-            if (!TextUtils.isEmpty(value)) {
-                String[] arr = value.split("-");
-                if (arr.length > 0) {
-                    String str = arr[0].replace(".", "");
-                    mHwVersionCode = Integer.parseInt(str);
-                }
-            }
-        }
-        return mHwVersionCode;
-    }
-
-    /**
-     * Get hardware version name
-     *
-     * @return version name
-     */
-    public static String getHwVersionName() {
-        if (TextUtils.isEmpty(mHwVersionName)) {
-            mHwVersionName = AppUtils.getProperty("ro.topband.hw.version", "");
-        }
-        return mHwVersionName;
-    }
-
-    /**
-     * Get firmware version code
-     *
-     * @return version code
-     */
-    public static int getSwVersionCode() {
-        if (-1 == mSwVersionCode) {
-            String value = AppUtils.getProperty("ro.topband.sw.versioncode", "0");
-            mSwVersionCode = Integer.parseInt(value);
-        }
-        return mSwVersionCode;
-    }
-
-    /**
-     * Get firmware version name
-     *
-     * @return version name
-     */
-    public static String getSwVersionName() {
-        if (TextUtils.isEmpty(mSwVersionName)) {
-            mSwVersionName = AppUtils.getProperty("ro.topband.sw.version", "1.0.0");
-        }
-        return mSwVersionName;
-    }
-
-    /**
-     * Get Android version
+     * Get firmware version
      *
      * @return version
      */
-    public static String getAndroidVersion() {
-        return AppUtils.getProperty("ro.build.version.release", "");
+    public static String getFwVersion() {
+        if (TextUtils.isEmpty(mFwVersion)) {
+            mFwVersion = getProperty("ro.fw.version",
+                    getProperty("ro.topband.sw.version", "1.0.0"));
+        }
+        return mFwVersion;
     }
 
     /**
@@ -255,7 +155,7 @@ public class AppUtils {
     public static String getSerialNo() {
         String sn = android.os.Build.SERIAL;
         if (TextUtils.isEmpty(sn)) {
-            sn = AppUtils.getProperty("ro.serialno", "");
+            sn = getProperty("ro.serialno", "");
             if (TextUtils.isEmpty(sn)) {
                 sn = "unknown";
             }
@@ -329,7 +229,7 @@ public class AppUtils {
      * Whether the network is connected
      *
      * @param context Context
-     * @return true/false
+     * @return true: connected, false: disconnected
      */
     public static boolean isConnNetWork(Context context) {
         ConnectivityManager conManager = (ConnectivityManager) context.
@@ -342,7 +242,7 @@ public class AppUtils {
      * Whether WiFi is connected
      *
      * @param context Context
-     * @return true/false
+     * @return true: connected, false: disconnected
      */
     public static boolean isWifiConnected(Context context) {
         ConnectivityManager conManager = (ConnectivityManager) context.
@@ -354,8 +254,8 @@ public class AppUtils {
     /**
      * Get Ethernet MAC
      *
-     * @param context
-     * @return
+     * @param context Context
+     * @return Mac
      */
     public static String getEth0Mac(Context context) {
         if (TextUtils.isEmpty(mEth0Mac)) {
@@ -381,8 +281,8 @@ public class AppUtils {
     /**
      * Get WiFi MAC
      *
-     * @param context
-     * @return
+     * @param context Context
+     * @return Mac
      */
     @SuppressLint("HardwareIds")
     public static String getWifiMac(Context context) {
@@ -398,8 +298,8 @@ public class AppUtils {
     /**
      * Get MAC, get the Ethernet MAC first, then get the WiFi MAC if it is empty.
      *
-     * @param context
-     * @return
+     * @param context Context
+     * @return Mac
      */
     public static String getMac(Context context) {
         if (TextUtils.isEmpty(mMac)) {
@@ -414,8 +314,8 @@ public class AppUtils {
     /**
      * Get the MAC with the colon removed
      *
-     * @param context
-     * @return
+     * @param context Context
+     * @return Mac
      */
     public static String getMacNoColon(Context context) {
         if (TextUtils.isEmpty(mMacNoColon)) {
@@ -489,15 +389,6 @@ public class AppUtils {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    /**
-     * Get UUID
-     *
-     * @return UUID
-     */
-    public static String getUUID() {
-        return UUID.randomUUID().toString().replace("-", "");
     }
 
     private static boolean isExternalStorageMounted() {
@@ -688,7 +579,7 @@ public class AppUtils {
     /**
      * reboot
      *
-     * @param context
+     * @param context Context
      */
     public static void reboot(Context context) {
         Intent intent = new Intent(Intent.ACTION_REBOOT);
@@ -701,7 +592,7 @@ public class AppUtils {
     /**
      * shutdown
      *
-     * @param context
+     * @param context Context
      */
     public static void shutdown(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -720,8 +611,8 @@ public class AppUtils {
     /**
      * start app
      *
-     * @param context
-     * @param packageName
+     * @param context     Context
+     * @param packageName PackageName
      */
     public static void startApp(@NonNull Context context, @NonNull String packageName) {
         Intent intent = context.getPackageManager()
