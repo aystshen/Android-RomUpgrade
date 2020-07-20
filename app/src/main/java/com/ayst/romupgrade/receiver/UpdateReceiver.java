@@ -43,6 +43,8 @@ import com.ayst.romupgrade.service.UpdateService;
 public class UpdateReceiver extends BroadcastReceiver {
     private static final String TAG = "UpdateReceiver";
 
+    private static final String ACTION_START = "com.ayst.romupgrade.action.START";
+
     private static int sVolumeState = -1;
 
     @Override
@@ -50,7 +52,8 @@ public class UpdateReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         Log.i(TAG, "onReceive, action = " + action);
 
-        if (TextUtils.equals(Intent.ACTION_BOOT_COMPLETED, action)) {
+        if (TextUtils.equals(Intent.ACTION_BOOT_COMPLETED, action)
+            || TextUtils.equals(ACTION_START, action)) {
             /*
              Check local and remote upgrade after power-on.
               */
