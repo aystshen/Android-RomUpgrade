@@ -42,6 +42,7 @@ public class NewVersionBean implements Serializable {
      * detail : {"after":"2"}
      * filesize : 514044607
      * updtype : 1
+     * silent:true
      */
 
     @SerializedName("package")
@@ -58,6 +59,8 @@ public class NewVersionBean implements Serializable {
     private int fileSize;
     @SerializedName("updtype")
     private int updateType;
+    @SerializedName("silent")
+    private boolean silent;
 
     public String getPackageName() {
         return packageName;
@@ -115,6 +118,14 @@ public class NewVersionBean implements Serializable {
         this.updateType = updateType;
     }
 
+    public boolean isSilent() {
+        return silent;
+    }
+
+    public void setSilent(boolean silent) {
+        this.silent = silent;
+    }
+
     public int getAfter() {
         if (!TextUtils.isEmpty(detail)) {
             try {
@@ -137,6 +148,7 @@ public class NewVersionBean implements Serializable {
                 ", detail='" + detail + '\'' +
                 ", fileSize=" + fileSize +
                 ", updateType=" + updateType +
+                ", silent=" + silent +
                 '}';
     }
 }

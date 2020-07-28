@@ -449,12 +449,21 @@ public class UpdateService extends Service {
 
             if (null != newVersions && !newVersions.isEmpty()) {
                 sWorkHandleLocked = true;
-                mMainHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        showNewVersion(newVersions);
-                    }
-                });
+
+                boolean isSilent = false;
+                for (NewVersionBean bean : newVersions) {
+                    isSilent |= bean.isSilent(); // 一组升级任务中有一个为提示升级，则视为非静默升级
+                    mInstallProgresses.put(bean.getPackageName(), new InstallProgress(bean));
+                }
+
+                if (!isSilent) {
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            showNewVersion(newVersions);
+                        }
+                    });
+                }
             }
         }
     }
@@ -895,8 +904,6 @@ public class UpdateService extends Service {
         for (NewVersionBean bean : newVersions) {
             sb.append(bean.getPackageName()).append("(").append(bean.getVersion()).append(")\n");
             sb.append(bean.getInfo()).append("\n");
-
-            mInstallProgresses.put(bean.getPackageName(), new InstallProgress(bean));
         }
 
         Dialog dialog = new AlertDialog.Builder(getApplicationContext())
