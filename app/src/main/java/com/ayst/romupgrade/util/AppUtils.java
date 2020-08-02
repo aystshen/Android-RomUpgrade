@@ -157,7 +157,10 @@ public class AppUtils {
         if (TextUtils.isEmpty(sn)) {
             sn = getProperty("ro.serialno", "");
             if (TextUtils.isEmpty(sn)) {
-                sn = "unknown";
+                sn = getProperty("ro.boot.serialno", "");
+                if (TextUtils.isEmpty(sn)) {
+                    sn = getCPUSerial();
+                }
             }
         }
 
