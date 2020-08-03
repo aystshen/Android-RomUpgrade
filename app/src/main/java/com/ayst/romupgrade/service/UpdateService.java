@@ -447,6 +447,7 @@ public class UpdateService extends Service {
             }.getType();
             List<NewVersionBean> newVersions = sGson.fromJson(jsonList, type);
 
+            mInstallProgresses.clear();
             if (null != newVersions && !newVersions.isEmpty()) {
                 sWorkHandleLocked = true;
 
@@ -898,8 +899,6 @@ public class UpdateService extends Service {
      * @param newVersions 升级列表
      */
     private void showNewVersion(final List<NewVersionBean> newVersions) {
-        mInstallProgresses.clear();
-
         StringBuilder sb = new StringBuilder();
         for (NewVersionBean bean : newVersions) {
             sb.append(bean.getPackageName()).append("(").append(bean.getVersion()).append(")\n");
