@@ -34,6 +34,7 @@
     <string name="upgrade_install_failed">"安装失败！"</string>
     <string name="upgrade_invalid_package">"验证失败！"</string>
     <string name="upgrade_unknown_sources_package">"安装应用需要打开未知来源权限，请去设置中开启权限！"</string>
+    <string name="upgrade_smaller_version">"升级包版本小于等于当前系统版本，将不会被升级！"</string>
 
     <!--checkUpdate回调错误码-->
     <string name="check_param_error">"参数错误！"</string>

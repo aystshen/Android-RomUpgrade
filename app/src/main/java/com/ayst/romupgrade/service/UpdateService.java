@@ -205,7 +205,7 @@ public class UpdateService extends Service {
 
     private boolean isUserTriggered = false;
     private int mLocalPackageIndex = 0;
-    private int mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
+    private UsbConfigManager mConfigMgr;
     private List<LocalPackage> mLocalPackages = new ArrayList<>();
     private CustomUpgradeInterface mCustomUpgradeInterface;
 
@@ -476,7 +476,6 @@ public class UpdateService extends Service {
      * 应用升级包：exupdate 目录下的apk文件
      */
     private void checkLocalUpdate() {
-        mLocalUpdateType = UPDATE_TYPE_RECOMMEND;
         mLocalPackageIndex = 0;
         mLocalPackages.clear();
 
@@ -518,7 +517,8 @@ public class UpdateService extends Service {
             }
 
             sWorkHandleLocked = true;
-            if (UPDATE_TYPE_SILENT == mLocalUpdateType) {
+            if (null != mConfigMgr
+                    && UPDATE_TYPE_SILENT == mConfigMgr.getUpdateType()) {
                 installLocalNext();
             } else {
                 showNewVersion();
@@ -526,17 +526,62 @@ public class UpdateService extends Service {
         }
     }
 
+    /**
+     * 比较当前系统版本与升级包版本
+     *
+     * @param version 升级包版本
+     * @return true: 升级包版本大于当前版本，false: 升级包版本小于等于当前版本
+     */
+    private boolean compareVersion(String version) {
+        if (!TextUtils.isEmpty(version)) {
+            String[] cur = AppUtils.getFwVersion().split("\\.");
+            String[] pkg = version.split("\\.");
+
+            int size = Math.min(cur.length, pkg.length);
+            for (int i = 0; i < size; i++) {
+                int a = Integer.parseInt(cur[i]);
+                int b = Integer.parseInt(pkg[i]);
+                if (b > a) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 加载系统OTA升级包
+     *
+     * @param file 查找目录
+     * @return
+     */
     private boolean loadOtaPackage(File file) {
         if (null != file && file.exists() && file.isDirectory()) {
             File otaFile = new File(file, ROM_OTA_PACKAGE_FILENAME);
             if (otaFile.exists()) {
-                mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
+                if (null == mConfigMgr
+                        || compareVersion(mConfigMgr.getPackageVersion())) {
+                    mLocalPackages.add(new LocalPackage(LocalPackage.TYPE_ROM, otaFile));
+                } else {
+                    Log.w(TAG, "loadOtaPackage, The package version is " +
+                            "less than or equal to the current system version.");
+                    Toast.makeText(this, R.string.upgrade_smaller_version,
+                            Toast.LENGTH_LONG).show();
+                }
             }
         }
 
         return !mLocalPackages.isEmpty();
     }
 
+    /**
+     * 加载『exupdate』目录下的config.ini配置和待升级APK文件
+     *
+     * @param file 查找目录
+     * @return
+     */
     private boolean loadExupdate(File file) {
         if (null != file && file.exists() && file.isDirectory()) {
             File[] files = file.listFiles(new FileFilter() {
@@ -555,7 +600,9 @@ public class UpdateService extends Service {
 
             File configFile = new File(file, USB_CONFIG_FILENAME);
             if (configFile.exists()) {
-                mLocalUpdateType = new UsbConfigManager(configFile).getUpdateType();
+                mConfigMgr = new UsbConfigManager(configFile);
+            } else {
+                mConfigMgr = null;
             }
         }
 
@@ -566,7 +613,6 @@ public class UpdateService extends Service {
      * 保存升级标志，用于系统升级完成后判别升级结果
      *
      * @param packagePath 系统升级包路径
-     * @throws IOException
      */
     private void saveUpdateFlag(String packagePath) {
         try {
@@ -1322,7 +1368,7 @@ public class UpdateService extends Service {
 
     private BroadcastReceiver mInstallBroadcastReceiver = new BroadcastReceiver() {
         @Override
-        public void onReceive (Context context, Intent intent){
+        public void onReceive(Context context, Intent intent) {
             if (intent != null
                     && (TextUtils.equals(Intent.ACTION_PACKAGE_ADDED, intent.getAction())
                     || TextUtils.equals(Intent.ACTION_PACKAGE_REPLACED, intent.getAction()))) {

@@ -34,6 +34,7 @@
     <string name="upgrade_install_failed">install failed!</string>
     <string name="upgrade_invalid_package">invalid package!</string>
     <string name="upgrade_unknown_sources_package">To install the application, you need to open the permissions of unknown source. Please go to Settings to open the permissions!</string>
+    <string name="upgrade_smaller_version">Upgrade package versions less than or equal to the current system version will not be upgraded!</string>
 
     <!--checkUpdate回调错误码-->
     <string name="check_param_error">"param error!"</string>

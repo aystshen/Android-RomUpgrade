@@ -16,6 +16,7 @@
 
 package com.ayst.romupgrade.config;
 
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
@@ -30,11 +31,20 @@ import java.util.Properties;
 public class UsbConfigManager {
     private final static String TAG = "UsbConfigManager";
 
+    /**
+     * 升级类型，1：推荐升级，2：静默升级
+     */
     public final static String UPDATE_TYPE = "UPDATE_TYPE";
+
+    /**
+     * OTA升级包版本号，如：1.0.0
+     */
+    public final static String PACKAGE_VERSION = "PACKAGE_VERSION";
 
     private File mConfigFile;
     private Properties mCfgProperties = null;
     private int mUpdateType = -1;
+    private String mPackageVersion = "";
 
     public UsbConfigManager(File configFile) {
         mConfigFile = configFile;
@@ -58,9 +68,9 @@ public class UsbConfigManager {
     }
 
     /**
-     * Get upgrade type
+     * 获取升级类型
      *
-     * @return 1: recommend, 2: silent
+     * @return 1：推荐升级，2：静默升级
      */
     public int getUpdateType() {
         if (-1 == mUpdateType) {
@@ -75,5 +85,20 @@ public class UsbConfigManager {
         }
 
         return mUpdateType;
+    }
+
+    /**
+     * 获取升级包版本号
+     *
+     * @return 版本号
+     */
+    public String getPackageVersion() {
+        if (TextUtils.isEmpty(mPackageVersion)) {
+            Properties properties = getProperties();
+            mPackageVersion = properties.getProperty(PACKAGE_VERSION, "1.0.0");
+            Log.i(TAG, "getPackageVersion, value:" + mPackageVersion);
+        }
+
+        return mPackageVersion;
     }
 }
