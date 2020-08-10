@@ -169,7 +169,7 @@ ro.baidu.product.secret=NTUyOGFhOTVjODRlZjFmOA==
 ro.baidu.presetapp=com.ayst.sample1,com.ayst.sample2
 
 # 系统固件版本号
-ro.topband.sw.version=1.0.0
+ro.fw.version=1.0.0
 ```
 
 ## 使用
