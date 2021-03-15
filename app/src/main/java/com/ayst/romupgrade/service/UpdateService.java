@@ -737,13 +737,7 @@ public class UpdateService extends Service {
 
             if (localPackage.getFile() != null
                     && localPackage.getFile().exists()) {
-
-                if (localPackage.getType() == LocalPackage.TYPE_APP) {
-                    installAppWithCopy(localPackage.getFile());
-
-                } else if (localPackage.getType() == LocalPackage.TYPE_ROM) {
-                    installSystem(localPackage.getFile());
-                }
+                installWithCopy(localPackage);
             } else {
                 installLocalNext();
             }
@@ -754,20 +748,24 @@ public class UpdateService extends Service {
     }
 
     /**
-     * 安装u盘中应用（u盘中apk文件无法直接安装，因此需要复制到内部存储空间后再安装）
+     * 安装u盘中应用或系统升级包
      *
-     * @param file 应用
+     * 注意：
+     * u盘中apk文件无法直接安装，因此需要复制到内部存储空间后再安装。
+     * 将系统升级包复制到内部存储空间后，支持通过otg口进行ota升级。
+     *
+     * @param localPackage 本地升级包（应用或系统）
      */
     @SuppressLint("CheckResult")
-    private void installAppWithCopy(final File file) {
+    private void installWithCopy(final LocalPackage localPackage) {
         Observable.create(new ObservableOnSubscribe<File>() {
             @Override
             public void subscribe(ObservableEmitter<File> emitter) throws Exception {
                 try {
-                    File to = new File(AppUtils.getExternalDir(mContext, "apks")
-                            + File.separator + file.getName());
+                    File to = new File(AppUtils.getExternalDir(mContext, "packages")
+                            + File.separator + localPackage.getFile().getName());
 
-                    copyFile(DocumentFile.fromFile(file), DocumentFile.fromFile(to));
+                    copyFile(DocumentFile.fromFile(localPackage.getFile()), DocumentFile.fromFile(to));
 
                     emitter.onNext(to);
 
@@ -785,13 +783,17 @@ public class UpdateService extends Service {
 
                     @Override
                     public void onNext(File file) {
-                        installApp(file);
+                        if (localPackage.getType() == LocalPackage.TYPE_APP) {
+                            installApp(file);
+                        } else if (localPackage.getType() == LocalPackage.TYPE_ROM) {
+                            installSystem(file);
+                        }
                         installLocalNext();
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        Log.e(TAG, "installAppWithCopy, e: " + e.getMessage());
+                        Log.e(TAG, "installWithCopy, e: " + e.getMessage());
                         installLocalNext();
                     }
 
