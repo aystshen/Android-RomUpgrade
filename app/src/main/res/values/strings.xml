@@ -30,6 +30,7 @@
     <string name="upgrade_message">"Found a new version, is it upgraded?\n"</string>
     <string name="upgrade_success">Upgrade success!</string>
     <string name="upgrade_failed">Upgrade failed!</string>
+    <string name="upgrade_prepare_install">Ready to install: </string>
     <string name="upgrade_install_success">install success!</string>
     <string name="upgrade_install_failed">install failed!</string>
     <string name="upgrade_invalid_package">invalid package!</string>

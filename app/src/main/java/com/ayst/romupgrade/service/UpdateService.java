@@ -517,8 +517,8 @@ public class UpdateService extends Service {
             }
 
             sWorkHandleLocked = true;
-            if (null != mConfigMgr
-                    && UPDATE_TYPE_SILENT == mConfigMgr.getUpdateType()) {
+            if ((null != mConfigMgr && UPDATE_TYPE_SILENT == mConfigMgr.getUpdateType())
+                || TextUtils.equals("1", AppUtils.getProperty("ro.update.silent", "0"))) {
                 installLocalNext();
             } else {
                 showNewVersion();
@@ -737,6 +737,8 @@ public class UpdateService extends Service {
 
             if (localPackage.getFile() != null
                     && localPackage.getFile().exists()) {
+                Toast.makeText(this, getString(R.string.upgrade_prepare_install)
+                                + localPackage.getFile().getName(), Toast.LENGTH_LONG).show();
                 installWithCopy(localPackage);
             } else {
                 installLocalNext();

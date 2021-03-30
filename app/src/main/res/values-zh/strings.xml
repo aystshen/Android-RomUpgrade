@@ -30,6 +30,7 @@
     <string name="upgrade_message">"发现新版本，是否升级？\n"</string>
     <string name="upgrade_success">"升级成功！"</string>
     <string name="upgrade_failed">"升级失败！"</string>
+    <string name="upgrade_prepare_install">"准备安装："</string>
     <string name="upgrade_install_success">"安装成功！"</string>
     <string name="upgrade_install_failed">"安装失败！"</string>
     <string name="upgrade_invalid_package">"验证失败！"</string>
