@@ -484,8 +484,16 @@ public class UpdateService extends Service {
 
             File rootDir = new File(root);
             if (null != rootDir.listFiles()) {
+                // 先查找一遍根目录
+                loadExupdate(new File(rootDir, LOCAL_UPDATE_PATH));
+                loadOtaPackage(rootDir);
+                if (!mLocalPackages.isEmpty()) {
+                    break;
+                }
+
                 for (File file : rootDir.listFiles()) {
                     if (file.isDirectory()) {
+                        // 再查找一遍子目录
                         loadExupdate(new File(file, LOCAL_UPDATE_PATH));
                         loadOtaPackage(file);
 
